@@ -1,8 +1,14 @@
 import sys
+from PIL import Image
+
+datafile = ""
+imagefile = ""
+outputfile = ""
 
 
 def encode():
-    pass
+    im = Image. open()
+    
 def decode():
     pass
 
