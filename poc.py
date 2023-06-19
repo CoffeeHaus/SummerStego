@@ -1,78 +1,124 @@
 from PIL import Image
 import sys
+import argparse
+verbose = True
+
+
+def Verbose(string):
+    global verbose
+    if(verbose):
+        print(string)
+
 
 class PatternSteg:
     InputFile = "test.bmp"
     OutputFile = "output.bmp"
     DataFile = "testfile.txt"
+    DataOutputFile = "dataout.txt"
     StartCrib = "101000000101"
     EndCrib = "101111111101"
+    EncodingLength = 2
     data = []
+
     def encode(self):
         img = Image.open(self.InputFile)
         # Load the image into memory to allow pixel access.
         pixels = img.load()
-        bin = self.file_to_binary()
-        data = bin
-        while (len(data) % 3 != 0):
+        data = self.file_to_binary()
+        while len(data) % self.EncodingLength != 0:
             data += '0'
-        data = self.StartCrib + bin + self.EndCrib
-        res = [data[i:i + 3] for i in range(0, len(data), 3)]
-        while len(res[-1]) < 3:
-            res[-1] += "0"
+        data = self.StartCrib + data + self.EndCrib
+        bytesEncoded = [data[i:i + self.EncodingLength] for i in range(0, len(data), self.EncodingLength)]
 
-        print("data to be encoded")
-        print(res)
-        i = 0
-        while not (i >= len(res)):
-            # Go over each pixel.
-            for y in range(img.height):
-                for x in range(img.width):
-                    r, g, b = pixels[x, y]
-                    changed = False
-                    # R
-                    if (i < len(res) and self.check_if_data(res[i], r)):
-                        r = r | 1
-                        i += 1
-                        changed = True
-                        if (i >= len(res)):
-                            print("BREAK")
+        #pads enough zeros to make groups of three bytes
+        while len(bytesEncoded[-1]) < self.EncodingLength:
+            bytesEncoded[-1] += "0"
+
+        Verbose("data to be encoded")
+        Verbose(bytesEncoded)
+        data_count = 0
+        bits_changed = 0
+        lastx = 0
+        lasty = 0
+        test = img.getbands()
+        if 'P' in test:
+            palette = img.getpalette()
+            for x in range(img.width):
+                for y in range(img.height):
+                    index = img.getpixel((x, y))  # index in the palette
+                    base = 3 * index  # because each palette color has 3 components
+                    r, g, b = palette[base:base + 3]
+                    if_changed = False
+                    data_added = []
+                    for pix in r, g, b:
+
+                        if not data_count < len(bytesEncoded):  # DoneEncoding Data
                             break
+                        elif self.check_if_data(bytesEncoded[data_count], pix):  # if data is a match
 
-                    else:
-                        r = r & 254
-                    # G
-                    if (i < len(res) and self.check_if_data(res[i], g)):
-                        g = g | 1
-                        i += 1
-                        changed = True
-                        if (i >= len(res)):
-                            print("BREAK")
-                            break
+                            if (pix & 1) == 0:  # mark this data as encoded
+                                pix = pix | 1
+                                bits_changed += 1
+                            data_added.append(bytesEncoded[data_count])
+                            pix = pix | 1
+                            lastx = x
+                            lasty = y
+                            data_count += 1
+                            if_changed = True
 
-                    else:
-                        g = g & 254
-
-                    # B
-                    if (i < len(res) and self.check_if_data(res[i], b)):
-                        b = b | 1
-                        i += 1
-                        changed = True
-                        if (i >= len(res)):
-                            print("BREAK")
-                            break
-                    else:
-                        b = b & 254
-
+                        else:  # data not a match
+                            if (pix & 1) == 1:  # mark this data as encoded
+                                pix = pix & 254
+                                bits_changed += 1
+                    if if_changed:
+                        Verbose("Pixel [{},{}] added {}".format(x, y, data_added))
                     # Update the pixel with modified values.
-                    pixels[x, y] = (r, g, b)
+                    r, g, b = palette[base:base + 3]
+                    palette[base] = r
+                    palette[base + 1] = g
+                    palette[base + 2] = b
+        else:
+            while data_count < len(bytesEncoded):
+                # Go over each pixel.
+                for y in range(img.height):
+                    for x in range(img.width):
+                        #each pixel
+                        r, g, b = pixels[x, y]
+                        if_changed = False
+                        data_added = []
+                        for pix in r,g,b:
+
+                            if not data_count < len(bytesEncoded): #DoneEncoding Data
+                                break
+                            elif self.check_if_data(bytesEncoded[data_count], pix):# if data is a match
+
+                                if (pix & 1) == 0:#mark this data as encoded
+                                    pix = pix | 1
+                                    bits_changed += 1
+                                data_added.append(bytesEncoded[data_count])
+                                pix = pix | 1
+                                lastx = x
+                                lasty = y
+                                data_count += 1
+                                if_changed = True
+
+                            else: #data not a match
+                                if (pix & 1) == 1:#mark this data as encoded
+                                    pix = pix & 254
+                                    bits_changed += 1
+                        if if_changed:
+                            Verbose("Pixel [{},{}] added {}".format(x,y,data_added))
+                        # Update the pixel with modified values.
+                        pixels[x, y] = (r, g, b)
+
 
         # Save the modified image.
         img.save(self.OutputFile)
+        Verbose("Last Pixel modified [{},{}]".format(lastx,lasty))
+        Verbose("Bits changed {} Bits saved {}".format(bits_changed, len(bytesEncoded) * 3))
 
     def file_to_binary(self):
         binary_content = ""
-
         try:
             with open(self.DataFile, 'rb') as file:
                 while (byte := file.read(1)):
@@ -86,11 +132,16 @@ class PatternSteg:
     def to_bin(self, data):
         return "{0:b}".format(data)
 
-    def check_if_data(value, data):
+    def check_if_data(self, value, data):
         # print(value,data)
+        mask = 0
+        if self.EncodingLength == 3:
+            mask = 14
+        elif self.EncodingLength == 2:
+            mask = 6
         tempv = int(value, 2)
         temp = int(data)
-        temp = temp & 14
+        temp = temp & mask
         temp = temp >> 1
         # print(temp,tempv)
         if temp == tempv:
@@ -102,13 +153,14 @@ class PatternSteg:
         if (len(self.data) > 4):
             check = True
             z = len(self.data) - 1
-            if (self.data[z] == 5):
+            test = int(self.data[z],2)
+            if not (int(self.data[z], 2) == 5):
                 check = False
-            if (self.data[z - 1] == 7):
+            if not (int(self.data[z - 1],2) == 7):
                 check = False
-            if (self.data[z - 2] == 7):
+            if not (int(self.data[z - 2], 2) == 7):
                 check = False
-            if (self.data[z - 3] == 5):
+            if not (int(self.data[z - 3], 2) == 5):
                 check = False
             return check
 
@@ -121,41 +173,58 @@ class PatternSteg:
                 r, g, b = pixels[x, y]
 
                 # R
-                if (r & 1 == 1):
+                if (r & 1) == 1:
                     bitdata = (r >> 1) & 7
                     if self.CheckForCrib():
                         return
                     self.data.append(self.to_bin(bitdata))
 
                 # G
-                if (g & 1 == 1):
+                if (g & 1) == 1:
                     bitdata = (g >> 1) & 7
                     if self.CheckForCrib():
                         return
                     self.data.append(self.to_bin(bitdata))
                 # B
-                if (b & 1 == 1):
-                    data = (b >> 1) & 7
+                if (b & 1) == 1:
+                    bitdata = (b >> 1) & 7
                     if self.CheckForCrib():
                         return
                     self.data.append(self.to_bin(bitdata))
 
-                if (len(self.data) == 4):
-                    pass
+                #if len(self.data) == 4:
+                    #print(self.data)
 
         fdat = ""
-        for x in data[4:-4]:
+        for x in self.data[4:-4]:
             while len(x) != 3:
                 x = '0' + x
             fdat += x
-        #print(fdat)
+        print(fdat)
         byte_data = bytes(int(fdat[i:i + 8], 2) for i in range(0, len(fdat), 8))
-        with open("dataoutput.txt", "wb") as binary_file:
+        with open(self.DataOutputFile, "wb") as binary_file:
             binary_file.write(byte_data)
 
 
-pat = PatternSteg()
-if (sys.argv[1] == "-e"):
-    pat.encode()
-elif (sys.argv[1] == "-d"):
-    pat.decode()
+def parse_args():
+    parser = argparse.ArgumentParser(description="Example Argument Parser")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("-e", "--encode", type=str, help="Specify the file to encode")
+    group.add_argument("-d", "--decode", type=str, help="Specify the file to decode")
+    args = parser.parse_args()
+
+    return args
+
+
+def main():
+    pat = PatternSteg()
+    args = parse_args()
+    if args.encode:
+        pat.encode()
+        #pat.OutputFile
+    elif args.decode:
+        pat.decode()
+
+
+main()
