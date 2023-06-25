@@ -4,10 +4,14 @@ import argparse
 verbose = True
 
 
-def Verbose(string):
+def verbose(string):
     global verbose
-    if(verbose):
+    if verbose:
         print(string)
+
+
+def to_bin(data):
+    return "{0:b}".format(data)
 
 
 class PatternSteg:
@@ -17,7 +21,7 @@ class PatternSteg:
     DataOutputFile = "dataout.txt"
     StartCrib = "101000000101"
     EndCrib = "101111111101"
-    EncodingLength = 2
+    EncodingLength = 3
     data = []
 
     def encode(self):
@@ -30,12 +34,12 @@ class PatternSteg:
         data = self.StartCrib + data + self.EndCrib
         bytesEncoded = [data[i:i + self.EncodingLength] for i in range(0, len(data), self.EncodingLength)]
 
-        #pads enough zeros to make groups of three bytes
+        # pads enough zeros to make groups of three bytes
         while len(bytesEncoded[-1]) < self.EncodingLength:
             bytesEncoded[-1] += "0"
 
-        Verbose("data to be encoded")
-        Verbose(bytesEncoded)
+        verbose("data to be encoded")
+        verbose(bytesEncoded)
         data_count = 0
         bits_changed = 0
         lastx = 0
@@ -50,72 +54,81 @@ class PatternSteg:
                     r, g, b = palette[base:base + 3]
                     if_changed = False
                     data_added = []
-                    for pix in r, g, b:
+                    val = [r, g, b]
 
+                    for i, s in enumerate(val):  # enumerates through R G B
                         if not data_count < len(bytesEncoded):  # DoneEncoding Data
                             break
-                        elif self.check_if_data(bytesEncoded[data_count], pix):  # if data is a match
+                        elif self.check_if_data(bytesEncoded[data_count], s):  # if data is a match
 
-                            if (pix & 1) == 0:  # mark this data as encoded
-                                pix = pix | 1
+                            if (s & 1) == 0:  # mark this data as encoded
+                                s = s | 1
                                 bits_changed += 1
                             data_added.append(bytesEncoded[data_count])
-                            pix = pix | 1
+                            s = s | 1
                             lastx = x
                             lasty = y
                             data_count += 1
                             if_changed = True
 
                         else:  # data not a match
-                            if (pix & 1) == 1:  # mark this data as encoded
-                                pix = pix & 254
+                            if (s & 1) == 1:  # mark this data as encoded
+                                s = s & 254
                                 bits_changed += 1
+                        val[i] = s
+
                     if if_changed:
-                        Verbose("Pixel [{},{}] added {}".format(x, y, data_added))
-                    # Update the pixel with modified values.
-                    r, g, b = palette[base:base + 3]
-                    palette[base] = r
-                    palette[base + 1] = g
-                    palette[base + 2] = b
+                        verbose("Pixel [{},{}] added {}".format(x, y, data_added))
+
+                        # Update the pixel with modified values.
+                        r, g, b = val
+                        palette[base] = r
+                        palette[base + 1] = g
+                        palette[base + 2] = b
+            img.putpalette(palette)
         else:
             while data_count < len(bytesEncoded):
                 # Go over each pixel.
-                for y in range(img.height):
-                    for x in range(img.width):
+                for x in range(img.width):
+                    for y in range(img.height):
                         #each pixel
                         r, g, b = pixels[x, y]
                         if_changed = False
                         data_added = []
-                        for pix in r,g,b:
+                        val = [r, g, b]
 
-                            if not data_count < len(bytesEncoded): #DoneEncoding Data
+                        for i, s in enumerate(val):  # enumerates through R G B
+                            if not data_count < len(bytesEncoded):  # DoneEncoding Data
                                 break
-                            elif self.check_if_data(bytesEncoded[data_count], pix):# if data is a match
+                            elif self.check_if_data(bytesEncoded[data_count], s):  # if data is a match
 
-                                if (pix & 1) == 0:#mark this data as encoded
-                                    pix = pix | 1
+                                if (s & 1) == 0:  # mark this data as encoded
+                                    s = s | 1
                                     bits_changed += 1
                                 data_added.append(bytesEncoded[data_count])
-                                pix = pix | 1
+                                s = s | 1
                                 lastx = x
                                 lasty = y
                                 data_count += 1
                                 if_changed = True
 
-                            else: #data not a match
-                                if (pix & 1) == 1:#mark this data as encoded
-                                    pix = pix & 254
+                            else:  # data not a match
+                                if (s & 1) == 1:  # mark this data as encoded
+                                    s = s & 254
                                     bits_changed += 1
+                            val[i] = s
+
                         if if_changed:
-                            Verbose("Pixel [{},{}] added {}".format(x,y,data_added))
+                            verbose("Pixel [{},{}] added {}".format(x, y, data_added))
                         # Update the pixel with modified values.
+                        r, g, b = val
                         pixels[x, y] = (r, g, b)
 
 
         # Save the modified image.
         img.save(self.OutputFile)
-        Verbose("Last Pixel modified [{},{}]".format(lastx,lasty))
-        Verbose("Bits changed {} Bits saved {}".format(bits_changed, len(bytesEncoded) * 3))
+        verbose("Last Pixel modified [{},{}]".format(lastx, lasty))
+        verbose("Bits changed {} Bits saved {}".format(bits_changed, len(bytesEncoded) * 3))
 
     def file_to_binary(self):
         binary_content = ""
@@ -128,9 +141,6 @@ class PatternSteg:
             return
 
         return binary_content
-
-    def to_bin(self, data):
-        return "{0:b}".format(data)
 
     def check_if_data(self, value, data):
         # print(value,data)
@@ -149,14 +159,15 @@ class PatternSteg:
         else:
             return False
 
-    def CheckForCrib(self):
-        if (len(self.data) > 4):
+    def check_for_crib(self):
+        if len(self.data) > 4:
             check = True
             z = len(self.data) - 1
-            test = int(self.data[z],2)
+            test = int(self.data[z], 2)
+
             if not (int(self.data[z], 2) == 5):
                 check = False
-            if not (int(self.data[z - 1],2) == 7):
+            if not (int(self.data[z - 1], 2) == 7):
                 check = False
             if not (int(self.data[z - 2], 2) == 7):
                 check = False
@@ -168,32 +179,65 @@ class PatternSteg:
         img = Image.open(self.OutputFile)
         # Load the image into memory to allow pixel access.
         pixels = img.load()
-        for y in range(img.height):
+        test = img.getbands()
+        if 'P' in test:
+            palette = img.getpalette()
             for x in range(img.width):
-                r, g, b = pixels[x, y]
+                for y in range(img.height):
+                    index = img.getpixel((x, y))  # index in the palette
+                    base = 3 * index  # because each palette color has 3 components
+                    r, g, b = palette[base:base + 3]
+                    # R
+                    if (r & 1) == 1:
+                        bitdata = (r >> 1) & 7
+                        if self.check_for_crib():
+                            return
+                        self.data.append(to_bin(bitdata))
+                    # G
+                    if (g & 1) == 1:
+                        bitdata = (g >> 1) & 7
+                        if self.check_for_crib():
+                            return
+                        self.data.append(to_bin(bitdata))
+                    # B
+                    if (b & 1) == 1:
+                        bitdata = (b >> 1) & 7
+                        if self.check_for_crib():
+                            return
+                        self.data.append(to_bin(bitdata))
 
-                # R
-                if (r & 1) == 1:
-                    bitdata = (r >> 1) & 7
-                    if self.CheckForCrib():
-                        return
-                    self.data.append(self.to_bin(bitdata))
+                    # Update the pixel with modified values.
+                    r, g, b = palette[base:base + 3]
+                    palette[base] = r
+                    palette[base + 1] = g
+                    palette[base + 2] = b
+        else:
+            for x in range(img.width):
+                for y in range(img.height):
+                    r, g, b = pixels[x, y]
 
-                # G
-                if (g & 1) == 1:
-                    bitdata = (g >> 1) & 7
-                    if self.CheckForCrib():
-                        return
-                    self.data.append(self.to_bin(bitdata))
-                # B
-                if (b & 1) == 1:
-                    bitdata = (b >> 1) & 7
-                    if self.CheckForCrib():
-                        return
-                    self.data.append(self.to_bin(bitdata))
+                    # R
+                    if (r & 1) == 1:
+                        bitdata = (r >> 1) & 7
+                        if self.check_for_crib():
+                            break
+                        self.data.append(to_bin(bitdata))
 
-                #if len(self.data) == 4:
-                    #print(self.data)
+                    # G
+                    if (g & 1) == 1:
+                        bitdata = (g >> 1) & 7
+                        if self.check_for_crib():
+                            break
+                        self.data.append(to_bin(bitdata))
+                    # B
+                    if (b & 1) == 1:
+                        bitdata = (b >> 1) & 7
+                        if self.check_for_crib():
+                            break
+                        self.data.append(to_bin(bitdata))
+
+                    if len(self.data) == 4:
+                        print(self.data)
 
         fdat = ""
         for x in self.data[4:-4]:
@@ -222,7 +266,6 @@ def main():
     args = parse_args()
     if args.encode:
         pat.encode()
-        #pat.OutputFile
     elif args.decode:
         pat.decode()
 
