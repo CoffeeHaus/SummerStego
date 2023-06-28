@@ -1,7 +1,7 @@
 from PIL import Image
 import sys
 import argparse
-verbose = True
+verbose = False
 
 
 def verbose(string):
@@ -10,13 +10,9 @@ def verbose(string):
         print(string)
 
 
-def to_bin(data):
-    return "{0:b}".format(data)
-
-
 class PatternSteg:
-    InputFile = "test.bmp"
-    OutputFile = "output.bmp"
+    InputImageFile = "test.bmp"
+    OutputImageFile = "output.bmp"
     DataFile = "testfile.txt"
     DataOutputFile = "dataout.txt"
     StartCrib = "101000000101"
@@ -24,8 +20,23 @@ class PatternSteg:
     EncodingLength = 3
     data = []
 
+    def to_bin(data):
+        return "{0:b}".format(data)
+
+    def set_data_file(self):
+        pass
+
+    def set_input_image_file(self):
+        pass
+
+    def set_output_image_file(self):
+        pass
+
+    def set_data_output_file(self):
+        pass
+
     def encode(self):
-        img = Image.open(self.InputFile)
+        img = Image.open(self.InputImageFile)
         # Load the image into memory to allow pixel access.
         pixels = img.load()
         data = self.file_to_binary()
@@ -124,9 +135,8 @@ class PatternSteg:
                         r, g, b = val
                         pixels[x, y] = (r, g, b)
 
-
         # Save the modified image.
-        img.save(self.OutputFile)
+        img.save(self.OutputImageFile)
         verbose("Last Pixel modified [{},{}]".format(lastx, lasty))
         verbose("Bits changed {} Bits saved {}".format(bits_changed, len(bytesEncoded) * 3))
 
@@ -176,7 +186,7 @@ class PatternSteg:
             return check
 
     def decode(self):
-        img = Image.open(self.OutputFile)
+        img = Image.open(self.OutputImageFile)
         # Load the image into memory to allow pixel access.
         pixels = img.load()
         test = img.getbands()
@@ -264,6 +274,9 @@ def parse_args():
 def main():
     pat = PatternSteg()
     args = parse_args()
+    if args.verbose:
+        global verbose
+        verbose = True
     if args.encode:
         pat.encode()
     elif args.decode:
