@@ -100,47 +100,43 @@ class PatternSteg:
         pass
 
     def evaluate_directions(self, data, img, pixels):
-        possible_directions = {(Direction.rowbyrow, Position.bottomleft),(Direction.columnbycolumn, Position.bottomleft) \
+        Outcomes = []
+        int chng
+        possible_directions = [(Direction.rowbyrow, Position.bottomleft),(Direction.columnbycolumn, Position.bottomleft) \
                                 (Direction.rowbyrow, Position.bottomright), (Direction.columnbycolumn, Position.bottomright)\
-                               }
+                               ]
         for direct in possible_directions:
+            #checking Differnt possible directions
             data_count = 0
             data_length = len(self.EncodingData)
             started = False
 
             for (x,y) in self.get_pixel_position(direct):
-                if(started)
-                if(data_count < data_length):
-                    pass
-                else:
+                r, g, b = pixels[x, y]
+                data_added = []
+                val = [r, g, b]
+                for i, s in enumerate(val):
 
-                    # Go over each pixel.
-                            # each pixel
-                            r, g, b = pixels[x, y]
-                            if_changed = False
-                            data_added = []
-                            val = [r, g, b]
+                    if(self.check_if_data(self.EncodingData[data_count], s) and not started):
+                        started = True
+                        bits_changed += 1
+                        if (s & 1) == 0:  # data will need to be marked as encoded
+                        else:  # data will not need to be marked as encoded
 
-                            for i, s in enumerate(val):  # enumerates through R G B
-                                if not data_count < len(bytesEncoded):  # DoneEncoding Data
-                                    break
-                                elif self.check_if_data(bytesEncoded[data_count], s):  # if data is a match
+                    elif(self.check_if_data(self.EncodingData[data_count], s)):
 
-                                    if (s & 1) == 0:  # mark this data as encoded
-                                        s = s | 1
-                                        bits_changed += 1
-                                    data_added.append(bytesEncoded[data_count])
-                                    s = s | 1
-                                    lastx = x
-                                    lasty = y
-                                    data_count += 1
-                                    if_changed = True
+                    elif():
 
-                                else:  # data not a match
-                                    if (s & 1) == 1:  # mark this data as encoded
-                                        s = s & 254
-                                        bits_changed += 1
-                                val[i] = s
+
+
+                    if(data_count < data_length):
+                        pass
+                    else:
+                        # Go over each pixel
+                         # enumerates through R G B
+                                if not data_count < data_length:  # DoneEncoding Data
+
+                                    val[i] = s
 
                             if if_changed:
                                 verbose("Pixel [{},{}] added {}".format(x, y, data_added))
