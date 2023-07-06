@@ -9,6 +9,16 @@ def verbose(string):
     if verbose:
         print(string)
 
+class Position:
+    bottomleft = 0
+    bottomright = 1
+    topright = 2
+    topleft = 3
+    middle = 4
+
+class Direction:
+    rowbyrow = 0
+    columnbycolumn = 1
 
 class PatternSteg:
     InputImageFile = "test.bmp"
@@ -17,8 +27,16 @@ class PatternSteg:
     DataOutputFile = "dataout.txt"
     StartCrib = "101000000101"
     EndCrib = "101111111101"
+    ImageHeight = 0
+    ImageWidth = 0
     EncodingLength = 3
     data = []
+    EncodingData = []
+    StartingPosition = Position.bottomleft
+    StartingDirection = Direction.rowbyrow
+
+
+
 
     def to_bin(data):
         return "{0:b}".format(data)
@@ -33,6 +51,104 @@ class PatternSteg:
         pass
 
     def set_data_output_file(self):
+        pass
+    def get_pixel_position(self, direction, starting_position):
+        #starts with 0,0 which is bottom left
+        if direction == Direction.rowbyrow and starting_position == Position.bottomleft:
+            for y in range(self.ImageHeight):
+                for x in range(self.ImageWidth):
+                    yield x,y
+
+        elif direction == Direction.columnbycolumn and starting_position == Position.bottomleft:
+            for x in range(self.ImageWidth):
+                for y in range(self.ImageHeight):
+                    yield x, y
+        #Top Right
+        elif direction == Direction.columnbycolumn and starting_position == Position.topright:
+            for x in range(self.ImageWidth,-1,-1):
+                for y in range(self.ImageHeight, -1, -1):
+                    yield x, y
+
+        elif direction == Direction.rowbyrow and starting_position == Position.topright:
+            for y in range(self.ImageHeight, -1, -1):
+                for x in range(self.ImageWidth, -1, -1):
+                    yield x, y
+        #Bot Right
+        elif direction == Direction.columnbycolumn and starting_position == Position.bottomright:
+            for x in range(self.ImageWidth,-1,-1):
+                for y in range(self.ImageHeight):
+                    yield x, y
+
+        elif direction == Direction.rowbyrow and starting_position == Position.bottomright:
+            for y in range(self.ImageHeight):
+                for x in range(self.ImageWidth, -1, -1):
+                    yield x, y
+        #Top left
+        elif direction == Direction.columnbycolumn and starting_position == Position.topleft:
+            for x in range(self.ImageWidth):
+                for y in range(self.ImageHeight,-1,-1):
+                    yield x, y
+
+        elif direction == Direction.rowbyrow and starting_position == Position.topleft:
+            for y in range(self.ImageHeight,-1,-1):
+                for x in range(self.ImageWidth):
+                    yield x, y
+
+
+    def check_encoding(self,starting_x,starting_y):
+    def Cascade_testing(self):
+        pass
+
+    def evaluate_directions(self, data, img, pixels):
+        possible_directions = {(Direction.rowbyrow, Position.bottomleft),(Direction.columnbycolumn, Position.bottomleft) \
+                                (Direction.rowbyrow, Position.bottomright), (Direction.columnbycolumn, Position.bottomright)\
+                               }
+        for direct in possible_directions:
+            data_count = 0
+            data_length = len(self.EncodingData)
+            started = False
+
+            for (x,y) in self.get_pixel_position(direct):
+                if(started)
+                if(data_count < data_length):
+                    pass
+                else:
+
+                    # Go over each pixel.
+                            # each pixel
+                            r, g, b = pixels[x, y]
+                            if_changed = False
+                            data_added = []
+                            val = [r, g, b]
+
+                            for i, s in enumerate(val):  # enumerates through R G B
+                                if not data_count < len(bytesEncoded):  # DoneEncoding Data
+                                    break
+                                elif self.check_if_data(bytesEncoded[data_count], s):  # if data is a match
+
+                                    if (s & 1) == 0:  # mark this data as encoded
+                                        s = s | 1
+                                        bits_changed += 1
+                                    data_added.append(bytesEncoded[data_count])
+                                    s = s | 1
+                                    lastx = x
+                                    lasty = y
+                                    data_count += 1
+                                    if_changed = True
+
+                                else:  # data not a match
+                                    if (s & 1) == 1:  # mark this data as encoded
+                                        s = s & 254
+                                        bits_changed += 1
+                                val[i] = s
+
+                            if if_changed:
+                                verbose("Pixel [{},{}] added {}".format(x, y, data_added))
+                            # Update the pixel with modified values.
+                            r, g, b = val
+                            pixels[x, y] = (r, g, b)
+
+    def check_encoding(self):
         pass
 
     def encode(self):
@@ -51,6 +167,14 @@ class PatternSteg:
 
         verbose("data to be encoded")
         verbose(bytesEncoded)
+        self.EncodingData = bytesEncoded
+
+        self.evaluate_directions(pixels)
+
+
+
+    def encode_data(self, x, y):
+
         data_count = 0
         bits_changed = 0
         lastx = 0
@@ -58,6 +182,9 @@ class PatternSteg:
         test = img.getbands()
         if 'P' in test:
             palette = img.getpalette()
+            self.ImageHeight = img.height
+            self.ImageWidth = img.width
+
             for x in range(img.width):
                 for y in range(img.height):
                     index = img.getpixel((x, y))  # index in the palette
