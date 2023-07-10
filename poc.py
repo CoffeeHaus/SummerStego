@@ -19,13 +19,16 @@ class Position(Enum):
 
 class Direction(Enum):
     rowbyrow = 0
-    rowbyrowsnake = 1
-    columnbycolumn = 2
-    columnbycolumnsnake = 3
-    clockwisespiral = 4
-    counterclockwisespiral = 5
+    #rowbyrowsnake = 1
+    rowbyrowreverse = 2
+    columnbycolumn = 3
+    #columnbycolumnsnake = 4
+    columnbycolumnreverse = 5
+    #clockwisespiral = 6
+    #counterclockwisespiral = 7
 
 class PatternSteg:
+    LoadedImage = None
     InputImageFile = "test.bmp"
     OutputImageFile = "output.bmp"
     DataFile = "testfile.txt"
@@ -40,11 +43,21 @@ class PatternSteg:
     StartingPosition = Position.bottomleft
     StartingDirection = Direction.rowbyrow
     OriginalData = None
-
+    Palette = None
+    Pixels = None
 
 
     def to_bin(data):
         return "{0:b}".format(data)
+
+    def get_crib(self, encoding):
+        if encoding == 4:
+            return ('1001','0000','0000','1001')
+        elif encoding == 3:
+            return ('101', '000', '000', '000', '101')
+        elif encoding == 2:
+            return ('1001','0000','0000','1001')
+
 
     def set_data_file(self):
         pass
@@ -57,169 +70,58 @@ class PatternSteg:
 
     def set_data_output_file(self):
         pass
-    def get_pixel_position(self, direction, starting_position):
-        output = "PixelPosition: "
-        output += str(direction) + " " + str(starting_position) + " " + str(self.EncodingLength)
-        #starts with 0,0 which is bottom left
-        if direction == Direction.rowbyrow and starting_position == Position.bottomleft:
-            for y in range(self.ImageHeight):
-                for x in range(self.ImageWidth):
+    def get_pixel_position(self, starting_point, direction):
+        starting_x, starting_y = starting_point
+        #starts at point which is bottom left
+        if direction == Direction.rowbyrow:
+            for y in range(starting_y, self.ImageHeight):
+                for x in range(starting_x, self.ImageWidth):
                     yield x, y
+                starting_x = 0
 
-        elif direction == Direction.columnbycolumn and starting_position == Position.bottomleft:
-            for x in range(self.ImageWidth):
-                for y in range(self.ImageHeight):
+        elif direction == Direction.columnbycolumn:
+            for x in range(starting_x, self.ImageWidth):
+                for y in range(starting_y, self.ImageHeight):
                     yield x, y
+                starting_y = 0
 
-        #bottom left Snake
-        elif direction == Direction.rowbyrowsnake and starting_position == Position.bottomleft:
-            for y in range(self.ImageHeight):
-
-                if y % 2 == 0:
-                    for x in range(self.ImageWidth):
-                        yield x, y
-                else:
-                    for x in range(self.ImageWidth-1, -1, -1):
-                        yield x, y
-
-        elif direction == Direction.columnbycolumnsnake and starting_position == Position.bottomleft:
-            for x in range(self.ImageWidth):
-                if x % 2 == 0:
-                    for y in range(self.ImageHeight):
-                        yield x, y
-                else:
-                    for y in range(self.ImageHeight-1, -1, -1):
-                        yield x, y
-
-        #Top Right
-        elif direction == Direction.columnbycolumn and starting_position == Position.topright:
-            for x in range(self.ImageWidth -1,-1,-1):
-                for y in range(self.ImageHeight-1, -1, -1):
+        #starts at point which is bottom left
+        if direction == Direction.rowbyrowreverse:
+            for y in range(starting_y, self.ImageHeight):
+                for x in range(starting_x, -1, -1):
                     yield x, y
+                starting_x = self.ImageWidth -1
 
-        elif direction == Direction.rowbyrow and starting_position == Position.topright:
-            for y in range(self.ImageHeight-1, -1, -1):
-                for x in range(self.ImageWidth-1, -1, -1):
+        elif direction == Direction.columnbycolumnreverse:
+            for x in range(starting_x, self.ImageWidth):
+                for y in range(starting_y, -1, -1):
                     yield x, y
-
-        ##Top Right Snake
-        elif direction == Direction.columnbycolumnsnake and starting_position == Position.topright:
-            for x in range(self.ImageWidth -1,-1,-1):
-                if x % 2 == 0:
-                    for y in range(self.ImageHeight-1, -1, -1):
-                        yield x, y
-                else:
-                    for y in range(self.ImageHeight):
-                        yield x, y
-
-        elif direction == Direction.rowbyrowsnake and starting_position == Position.topright:
-            for y in range(self.ImageHeight-1, -1, -1):
-                if y % 2 == 0:
-                    for x in range(self.ImageWidth-1, -1, -1):
-                        yield x, y
-                else:
-                    for x in range(self.ImageWidth):
-                        yield x, y
-
-        #Bot Right
-        elif direction == Direction.columnbycolumn and starting_position == Position.bottomright:
-            for x in range(self.ImageWidth-1, -1, -1):
-                for y in range(self.ImageHeight):
-                    yield x, y
-
-        elif direction == Direction.rowbyrow and starting_position == Position.bottomright:
-            for y in range(self.ImageHeight):
-                for x in range(self.ImageWidth-1, -1, -1):
-                    yield x, y
-
-        # Bot Right snake
-        elif direction == Direction.columnbycolumnsnake and starting_position == Position.bottomright:
-            for x in range(self.ImageWidth-1,-1,-1):
-                if x % 2 == 0:
-                    for y in range(self.ImageHeight):
-                        yield x, y
-                else:
-                    for y in range(self.ImageHeight-1,-1,-1):
-                        yield x, y
-
-        elif direction == Direction.rowbyrowsnake and starting_position == Position.bottomright:
-            for y in range(self.ImageHeight):
-                if y % 2 == 0:
-                    for x in range(self.ImageWidth-1, -1, -1):
-                        yield x, y
-                else:
-                    for x in range(self.ImageWidth):
-                        yield x, y
-
-        #Top left
-        elif direction == Direction.columnbycolumn and starting_position == Position.topleft:
-            for x in range(self.ImageWidth):
-                for y in range(self.ImageHeight-1,-1,-1):
-                    yield x, y
-
-        elif direction == Direction.rowbyrow and starting_position == Position.topleft:
-            for y in range(self.ImageHeight-1,-1,-1):
-                for x in range(self.ImageWidth):
-                    yield x, y
-
-        # Top left snake
-        elif direction == Direction.columnbycolumnsnake and starting_position == Position.topleft:
-            for x in range(self.ImageWidth):
-                if x % 2 == 0:
-                    for y in range(self.ImageHeight-1,-1,-1):
-                        yield x, y
-                else:
-                    for x in range(self.ImageWidth):
-                        yield x, y
-
-        elif direction == Direction.rowbyrowsnake and starting_position == Position.topleft:
-            for y in range(self.ImageHeight-1,-1,-1):
-                if y % 2 == 0:
-                    for x in range(self.ImageWidth):
-                        yield x, y
-                else:
-                    for x in range(self.ImageWidth - 1, -1, -1):
-                        yield x, y
-        # Middle ClockWise
-        elif (direction == Direction.clockwisespiral or direction.counterclockwisespiral) \
-                and starting_position == Position.middle:
-            # Offset values for moving right, up, left, down
-            if direction == Direction.clockwisespiral:
-                clockwise = True
-            else:
-                clockwise = False
-            grid_width, grid_height = int(self.ImageWidth), int(self.ImageHeight)
-            dx, dy = int(self.ImageWidth/2), int(self.ImageHeight/2)
-            directions = [(0, 1), (-1, 0), (0, -1), (1, 0)] if clockwise else [(0, -1), (1, 0), (0, 1), (-1, 0)]
-            matrix = [[None] * grid_width for _ in range(grid_height)]
-
-            # Yield the start position first
-            yield (dx, dy)
-            matrix[dy][dx] = 1
-
-            # Continue the spiral
-            for _ in range(max(grid_width, grid_height) ** 2):
-                for direction in directions:
-                    new_dx, new_dy = dx + direction[0], dy + direction[1]
-                    if (0 <= new_dx < grid_width) and (0 <= new_dy < grid_height) and matrix[new_dy][new_dx] is None:
-                        dx, dy = new_dx, new_dy
-                        yield (dx, dy)
-                        matrix[dy][dx] = 1
-                        break
-        else:
-            output += " Error no path"
-
-        print(output)
-
-
-
+                starting_y = self.ImageHeight -1
 
     def check_encoding(self,starting_x,starting_y):
         pass
-    def Cascade_testing(self):
+    def cascade_testing(self):
         pass
 
+    def get_possible_starting_point(self):
+        for y in range(self.ImageHeight):
+            for x in range(self.ImageWidth):
+
+                r, g, b = self.get_rgb((x,y))
+                val = (r,g,b)
+                if_val = False
+                for i, s in enumerate(val):
+                    if self.check_if_data('1001', s) and self.EncodingLength == 4:
+                        if_val = True
+                    elif self.check_if_data('101', s) and self.EncodingLength == 3:
+                        if_val = True
+                    elif self.check_if_data('10', s) and self.EncodingLength == 2:
+                        if_val = True
+                    if if_val:
+                        if_val = False
+                        yield x,y
     def evaluate_directions(self, pixels):
+
         Outcomes = []
         bits_changed = 0
         possible_directions = []
@@ -306,121 +208,191 @@ class PatternSteg:
             #end of for loop
         print(Outcomes)
 
+    def set_encoding_data(self, length):
+        if length == 4:
+            self.StartCrib = '1001000000001001'
+            self.StartCrib = '1001111111111001'
+        if length == 3:
+            self.StartCrib = '101000000000101'
+            self.StartCrib = '101111111111101'
+        elif length == 2:
+            self.StartCrib = '1001000000001001'
+            self.StartCrib = '1001111111111001'
 
-    def check_encoding(self):
-        pass
+        self.EncodingLength = length
+        data = self.OriginalData
+        while len(data) % self.EncodingLength != 0:
+            data += '0'
+        data = self.StartCrib + data + self.EndCrib
+        self.EncodingData = [data[i:i + self.EncodingLength] for i in range(0, len(data), self.EncodingLength)]
 
-    def encode(self):
-        img = Image.open(self.InputImageFile)
-        # Load the image into memory to allow pixel access.
-        pixels = img.load()
+
+    def encode (self):
         self.OriginalData = self.file_to_binary()
+        self.LoadedImage = Image.open(self.InputImageFile)
+        # Load the image into memory to allow pixel access.
+        self.ImageWidth = self.LoadedImage.width
+        self.ImageHeight = self.LoadedImage.height
 
-        self.ImageWidth = img.width
-        self.ImageHeight = img.height
-
-        #print("data to be encoded")
-        #print(bytesEncoded)
-        #self.EncodingData = bytesEncoded
-
-        self.evaluate_directions(pixels)
-
-
-
-    def encode_data(self, x, y):
-
-        data_count = 0
-        bits_changed = 0
-        lastx = 0
-        lasty = 0
-        test = img.getbands()
-        if 'P' in test:
-            palette = img.getpalette()
-            self.ImageHeight = img.height
-            self.ImageWidth = img.width
-
-            for x in range(img.width):
-                for y in range(img.height):
-                    index = img.getpixel((x, y))  # index in the palette
-                    base = 3 * index  # because each palette color has 3 components
-                    r, g, b = palette[base:base + 3]
-                    if_changed = False
-                    data_added = []
-                    val = [r, g, b]
-
-                    for i, s in enumerate(val):  # enumerates through R G B
-                        if not data_count < len(bytesEncoded):  # DoneEncoding Data
-                            break
-                        elif self.check_if_data(bytesEncoded[data_count], s):  # if data is a match
-
-                            if (s & 1) == 0:  # mark this data as encoded
-                                s = s | 1
-                                bits_changed += 1
-                            data_added.append(bytesEncoded[data_count])
-                            s = s | 1
-                            lastx = x
-                            lasty = y
-                            data_count += 1
-                            if_changed = True
-
-                        else:  # data not a match
-                            if (s & 1) == 1:  # mark this data as encoded
-                                s = s & 254
-                                bits_changed += 1
-                        val[i] = s
-
-                    if if_changed:
-                        verbose("Pixel [{},{}] added {}".format(x, y, data_added))
-
-                        # Update the pixel with modified values.
-                        r, g, b = val
-                        palette[base] = r
-                        palette[base + 1] = g
-                        palette[base + 2] = b
-            img.putpalette(palette)
+        if self.LoadedImage.getbands() == 'P':
+            self.Palette = self.LoadedImage.getpalette()
         else:
-            while data_count < len(bytesEncoded):
-                # Go over each pixel.
-                for x in range(img.width):
-                    for y in range(img.height):
-                        #each pixel
-                        r, g, b = pixels[x, y]
-                        if_changed = False
+            self.Pixels = self.LoadedImage.load()
+
+        isFound = False
+        for x in (100,50,20,10,5,3,2,1):
+            best_case = self.test_encode(x)
+            if best_case:
+                point, direction, encoding, bits = best_case
+                self.encode_data(point, direction, encoding)
+                break
+
+
+    def get_rgb(self, point):
+
+        if self.Palette :
+            index = self.LoadedImage.getpixel(point)  # index in the palette
+            base = 3 * index  # because each palette color has 3 components
+            return self.Palette[base:base + 3]
+        else:
+            return  self.Pixels[point]
+
+    def set_rgb(self, point, rgb):
+        if self.Palette:
+            index = self.LoadedImage.getpixel(point)  # index in the palette
+            base = 3 * index  # because each palette color has 3 components
+
+            self.Palette[base] = rgb[0]
+            self.Palette[base + 1] = rgb[1]
+            self.Palette[base + 2] = rgb[2]
+        else:
+            self.Pixels[point] = rgb
+
+    def test_encode(self, percentage_cutoff):
+        possible = []
+        is_found = False
+
+
+
+        Outcomes = []
+        bits_changed = 0
+        possible_directions = []
+        for e in (4, 3, 2):
+
+
+            self.set_encoding_data(4)
+            # data_excess is the factor of amount of bits that can be changed per actual data hidden, the goal is to actually get the number in excess of 100%
+            data_length = len(self.EncodingData)
+            data_excess = self.EncodingLength * data_length / (percentage_cutoff/100)
+            print("testing encoding ", e, " percentage cutoff ", percentage_cutoff , "% ")
+
+            for point in self.get_possible_starting_point():
+                for direct in Direction:
+                    data_count = 0
+                    exceeded = False
+                    #check one possible direction and location
+                    for pointa in self.get_pixel_position(point, direct):
+                        r, g, b = self.get_rgb(pointa)
                         data_added = []
                         val = [r, g, b]
-
-                        for i, s in enumerate(val):  # enumerates through R G B
-                            if not data_count < len(bytesEncoded):  # DoneEncoding Data
+                        # evaluate rgb
+                        for i, s in enumerate(val):
+                            if bits_changed > data_excess:
+                                exceeded = True
                                 break
-                            elif self.check_if_data(bytesEncoded[data_count], s):  # if data is a match
-
-                                if (s & 1) == 0:  # mark this data as encoded
-                                    s = s | 1
-                                    bits_changed += 1
-                                data_added.append(bytesEncoded[data_count])
-                                s = s | 1
-                                lastx = x
-                                lasty = y
+                            if not data_count < data_length:
+                                break
+                            ## only starts changing data when first data bit is found
+                            elif (self.check_if_data(self.EncodingData[data_count], s)):
                                 data_count += 1
-                                if_changed = True
-
-                            else:  # data not a match
-                                if (s & 1) == 1:  # mark this data as encoded
-                                    s = s & 254
+                                if (s & 1) == 0:  # data will need to be marked as encoded
                                     bits_changed += 1
-                            val[i] = s
+                                else:  # data will not need to be marked as encoded
+                                    pass
+                            else:
+                                if (s & 1 == 1):
+                                    bits_changed += 1
 
-                        if if_changed:
-                            verbose("Pixel [{},{}] added {}".format(x, y, data_added))
-                        # Update the pixel with modified values.
-                        r, g, b = val
-                        pixels[x, y] = (r, g, b)
+                        if exceeded:
+                            break
+                        #end of for loop
+                    if exceeded:
+                        #print(point, direct, "exceeded bit length")
+                        pass
+                    else:
+                        print(point, direct, "can be placed in ", bits_changed, "bits / " , data_length * self.EncodingLength, "bits percent ",  100 * (data_length * self.EncodingLength)/ bits_changed, "%  ")
+                        possible.append((point,direct, self.EncodingLength,bits_changed))
+                        is_found = True
+                    exceeded = False
+        if is_found:
+            smallest_encoding = possible[0]
+            for x in possible:
+                if x[3] < smallest_encoding[3]:
+                    smallest_encoding = x
+            return smallest_encoding
 
-        # Save the modified image.
-        img.save(self.OutputImageFile)
-        verbose("Last Pixel modified [{},{}]".format(lastx, lasty))
-        verbose("Bits changed {} Bits saved {}".format(bits_changed, len(bytesEncoded) * 3))
+        return None
 
+    def encode_data(self, point, direction, encoding):
+        data_count = 0
+        bits_changed = 0
+        self.set_encoding_data(encoding)
+        data_length = len(self.EncodingData)
+        # check one possible direction and location
+        for pointa in self.get_pixel_position(point, direction):
+            r, g, b = self.get_rgb(pointa)
+            data_added = []
+            val = [r, g, b]
+            # evaluate rgb
+            for i, s in enumerate(val):
+                ##if done encoding data
+                if not data_count < data_length:
+                    break
+
+                elif self.check_if_data(self.EncodingData[data_count], s):
+                    data_count += 1
+                    if (s & 1) == 0:  # data will need to be marked as encoded
+                        bits_changed += 1
+                    else:  # data will not need to be marked as encoded
+                        pass
+                else:
+                    if (s & 1 == 1):
+                        bits_changed += 1
+        self.set_rgb(pointa, (r,g,b))
+        self.save_image()
+
+    def check_for_full_crib(self, point, encoding):
+        ##attempting all possible directions from point
+        for dir in Direction:
+            for x in self.get_pixel_position(point, dir):
+                print()
+    def find_decode_points(self):
+        for y in range(self.ImageHeight):
+            for x in range(self.ImageWidth):
+
+                r, g, b = self.get_rgb((x,y))
+                val = (r,g,b)
+                if_val = False
+                for i, s in enumerate(val):
+                    if self.check_if_data('1001', s) and self.EncodingLength == 4:
+                        pnts = self.check_for_full_crib(4)
+                        if(pnts):
+                            if_val = True
+                    elif self.check_if_data('101', s) and self.EncodingLength == 3:
+                        pnts = self.check_for_full_crib(3)
+                        if(pnts):
+                            if_val = True
+                    elif self.check_if_data('10', s) and self.EncodingLength == 2:
+                        pnts = self.check_for_full_crib(2)
+                        if(pnts):
+                            if_val = True
+                    if if_val:
+                        if_val = False
+                        yield x,y
+
+
+    def save_image(self):
+        self.LoadedImage.save(self.OutputImageFile)
     def file_to_binary(self):
         binary_content = ""
         try:
@@ -430,13 +402,14 @@ class PatternSteg:
         except FileNotFoundError:
             print("The file does not exist")
             return
-
         return binary_content
 
     def check_if_data(self, value, data):
         # print(value,data)
         mask = 0
-        if self.EncodingLength == 3:
+        if self.EncodingLength == 4:
+            mask = 30
+        elif self.EncodingLength == 3:
             mask = 14
         elif self.EncodingLength == 2:
             mask = 6
@@ -467,6 +440,22 @@ class PatternSteg:
             return check
 
     def decode(self):
+        self.OriginalData = self.file_to_binary()
+        self.LoadedImage = Image.open(self.InputImageFile)
+        # Load the image into memory to allow pixel access.
+        self.ImageWidth = self.LoadedImage.width
+        self.ImageHeight = self.LoadedImage.height
+
+        if self.LoadedImage.getbands() == 'P':
+            self.Palette = self.LoadedImage.getpalette()
+        else:
+            self.Pixels = self.LoadedImage.load()
+
+        points = self.find_decode_points()
+        print(points
+
+              )
+    def holding(self):
         img = Image.open(self.OutputImageFile)
         # Load the image into memory to allow pixel access.
         pixels = img.load()
