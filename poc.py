@@ -334,6 +334,10 @@ class PatternSteg:
 
     def check_for_full_crib(self, point, encoding):
         ##attempting all possible directions from point
+
+        #limit is to ensure that it doesnt loop through the whole program
+        pixel_limit = 10
+        pixel_count = 0
         for dir in Direction:
             for x in self.get_pixel_position(point, dir):
                 print()
