@@ -19,13 +19,9 @@ class Position(Enum):
 
 class Direction(Enum):
     rowbyrow = 0
-    #rowbyrowsnake = 1
     rowbyrowreverse = 2
     columnbycolumn = 3
-    #columnbycolumnsnake = 4
     columnbycolumnreverse = 5
-    #clockwisespiral = 6
-    #counterclockwisespiral = 7
 
 class PatternSteg:
     LoadedImage = None
@@ -33,8 +29,8 @@ class PatternSteg:
     OutputImageFile = "output.bmp"
     DataFile = "testfile.txt"
     DataOutputFile = "dataout.txt"
-    StartCrib = "101000000101"
-    EndCrib = "101111111101"
+    StartCrib = ""
+    EndCrib = ""
     ImageHeight = 0
     ImageWidth = 0
     EncodingLength = 3
@@ -50,14 +46,24 @@ class PatternSteg:
     def to_bin(data):
         return "{0:b}".format(data)
 
-    def get_crib(self, encoding):
+    def get_ending_crib(self, encoding):
+        if encoding == 5:
+            return ('10101','00000','00000','10101')
         if encoding == 4:
             return ('1001','0000','0000','1001')
         elif encoding == 3:
             return ('101', '000', '000', '000', '101')
         elif encoding == 2:
-            return ('1001','0000','0000','1001')
-
+            return ('10','01','00','00','00','00','10','01')
+    def get_starting_crib(self, encoding):
+        if encoding == 5:
+            return ('10101','11111','11111','10101')
+        if encoding == 4:
+            return ('1001','1111','11111','1001')
+        elif encoding == 3:
+            return ('101', '111', '111', '111', '101')
+        elif encoding == 2:
+            return ('10','01','11','11','11','11','10','01')
 
     def set_data_file(self):
         pass
@@ -116,15 +122,18 @@ class PatternSteg:
                         if_val = False
                         yield x,y
     def set_encoding_data(self, length):
+        if length == 5:
+            self.StartCrib = '10001000000000010001'
+            self.EndCrib = '10001111111111110001'
         if length == 4:
             self.StartCrib = '1001000000001001'
-            self.StartCrib = '1001111111111001'
+            self.EndCrib = '1001111111111001'
         if length == 3:
             self.StartCrib = '101000000000101'
-            self.StartCrib = '101111111111101'
+            self.EndCrib = '101111111111101'
         elif length == 2:
             self.StartCrib = '1001000000001001'
-            self.StartCrib = '1001111111111001'
+            self.EndCrib = '1001111111111001'
 
         self.EncodingLength = length
         data = self.OriginalData
@@ -179,15 +188,13 @@ class PatternSteg:
         possible = []
         is_found = False
 
-
-
         Outcomes = []
         bits_changed = 0
         possible_directions = []
         for e in (4, 3, 2):
 
 
-            self.set_encoding_data(4)
+            self.set_encoding_data(e)
             # data_excess is the factor of amount of bits that can be changed per actual data hidden, the goal is to actually get the number in excess of 100%
             data_length = len(self.EncodingData)
             data_excess = self.EncodingLength * data_length / (percentage_cutoff/100)
@@ -250,8 +257,10 @@ class PatternSteg:
             r, g, b = self.get_rgb(pointa)
             data_added = []
             val = [r, g, b]
-            # evaluate rgb
+
+            # Loops through r, g, b
             for i, s in enumerate(val):
+
                 ##if done encoding data
                 if not data_count < data_length:
                     break
