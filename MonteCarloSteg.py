@@ -205,7 +205,7 @@ class MonteCarloSteg:
             for point in self.get_possible_starting_point():
                 count += 1
                 if count % 100 == 0:
-                    percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y)+ point.X) / pixels)
+                    percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y) + point.X) / pixels)
                     print("\r ", percent_done, "testing ", self.EncodingLength, " ", point, end="")
                 for direct in Direction:
                     data_encoded = False
@@ -244,10 +244,11 @@ class MonteCarloSteg:
                         #print(point, direct, "exceeded data length", end="")
                         pass
                     elif data_encoded:
-                        data_excess = bits_changed - 1 # We only care about points that are more effiecent
-                        print(self.EncodingLength, " :: ", point, " -> ", last_pixel, ": ", direct, " can be placed in "\
-                              , bits_changed, "bits / ", data_length * self.EncodingLength, "bits percent ",
-                              100 * (data_length * self.EncodingLength) / bits_changed, "%  ")
+                        data_excess = bits_changed - 1  # We only care about points that are more efficient
+                        percent = "{:.6}%".format(100 * data_length * self.EncodingLength / bits_changed)
+                        print(self.EncodingLength, " e ", point, " -> ", last_pixel, ":\t", direct,
+                              " ", bits_changed, "bits changed / ", data_length * self.EncodingLength,
+                              "Hidden efficiency percent ", percent)
                         possible_encoding=(point, direct, self.EncodingLength, bits_changed)
                         if 100 * (data_length * self.EncodingLength) / bits_changed > self.Threshold:
                             return possible_encoding
