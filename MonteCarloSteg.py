@@ -45,7 +45,8 @@ class MonteCarloSteg:
     EncodingLength = 0
     Hash = ""
     OutputImageFile = "output.bmp"
-    Threshold = 101
+
+    Input_Filename = ""
 
     def __init__(self):
         self.Output_File_Name = None
@@ -55,6 +56,10 @@ class MonteCarloSteg:
         self.Data_Received = None
         self.Verbose = False
         self.Encoding_Lengths = [2, ]
+        self.Threshold = 105
+        self.Input_Filename = "testfile.txt"
+        self.Input_Image_Filename = "test.bmp"
+        self.Output_Image_Filename = "output.bmp"
 
     # Utils
 
@@ -173,11 +178,19 @@ class MonteCarloSteg:
         else:
             return self.LoadedImage[point.to_tuple()]
 
+    def set_threshold(self, threshold: str) -> None:
+        self.Threshold = threshold
+    def set_input_filename(self, input_image_filename: str) -> None:
+        self.Input_Filename = input_image_filename
+    def set_input_image_filename(self, input_image_filename: str) -> None:
+        self.Input_Image_Filename = input_image_filename
+    def set_output_image_filename(self, output_image_filename: str) -> None:
+        self.Output_Image_Filename = output_image_filename
+
 # Encode ####################################################################
-    def encode(self, input_filename="testfile.txt", input_image_filename="input.bmp",
-               output_image_filename="output.bmp"):
-        self.InputData = self.file_to_binary(input_filename)
-        self.load_image_file(input_image_filename)
+    def encode(self):
+        self.InputData = self.file_to_binary(self.Input_Filename)
+        self.load_image_file(self.Input_Image_Filename)
 
         # Encode
         print("Encode started x-", self.ImageWidth, "  y-", self.ImageHeight)
@@ -186,7 +199,7 @@ class MonteCarloSteg:
             point, direction, encoding, bits = best_case
             self.encode_data(point, direction, encoding)
 
-        self.save_image(output_image_filename)
+        self.save_image(self.Output_Image_Filename)
 
     def test_encode(self) -> tuple:
         possible_encoding = None
@@ -203,6 +216,8 @@ class MonteCarloSteg:
             count = 0
             #Each possible starting point will be looped by how many possible directions it can go.
             for point in self.get_possible_starting_point():
+                percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y) + point.X) / pixels)
+                print("\r ", percent_done, "testing ", self.EncodingLength, " ", point, end="")
                 count += 1
                 if count % 100 == 0:
                     percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y) + point.X) / pixels)
@@ -317,8 +332,8 @@ class MonteCarloSteg:
             self.LoadedImage[point.to_tuple()] = rgb
 
 # Decode ####################################################################
-    def decode(self, output_image_filename="output.bmp"):
-        self.load_image_file(output_image_filename)
+    def decode(self):
+        self.load_image_file(self.Output_Image_Filename)
 
         for enco in [2,]:
             points = []
@@ -465,14 +480,15 @@ class MonteCarloSteg:
             file.write(self.Data_Received)
 
     # Test ####################################################################
-    def test(self, input_filename="testfile.txt" , input_image_filename="test.bmp", output_image_filename="output.bmp"):
+    def test(self):
         print("TEST started")
-        self.encode(input_filename,input_image_filename,output_image_filename)
+        self.encode()
 
         # Decode
         print("Decoding started")
-        self.decode(output_image_filename)
+        self.decode()
 # end of class MonteCarloSteg
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Example Argument Parser")
@@ -493,11 +509,10 @@ def main():
         monte.set_verbose(True)
     if args.encode:
         monte.encode()
-        # Monte.set_File()
     elif args.decode:
-        monte.decode()
+        monte.decode(args.decode)
     elif args.test:
-        # Monte.set_File(args.encode())
+        #Monte.set_File(args.test())
         monte.test()
 
         # Monte.test()
