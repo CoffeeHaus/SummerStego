@@ -261,7 +261,7 @@ class MonteCarloSteg:
                     elif data_encoded:
                         data_excess = bits_changed - 1  # We only care about points that are more efficient
                         percent = "{:.6}%".format(100 * data_length * self.EncodingLength / bits_changed)
-                        print(self.EncodingLength, " e ", point, " -> ", last_pixel, ":\t", direct,
+                        print("\r", self.EncodingLength, " e ", point, " -> ", last_pixel, ":\t", direct,
                               " ", bits_changed, "bits changed / ", data_length * self.EncodingLength,
                               "Hidden efficiency percent ", percent)
                         possible_encoding=(point, direct, self.EncodingLength, bits_changed)
