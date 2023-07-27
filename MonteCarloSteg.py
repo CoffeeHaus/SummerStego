@@ -1,19 +1,8 @@
 from PIL import Image
-import sys
 import argparse
 from enum import Enum
 import hashlib
 import zlib
-import bitstring
-import threading
-
-verbose = True
-
-
-def verbose(string):
-    global verbose
-    if verbose:
-        print(string)
 
 
 class Direction(Enum):
@@ -21,6 +10,18 @@ class Direction(Enum):
     rowreverse = 2
     column = 3
     columnreverse = 5
+
+
+class Point:
+    def __init__(self, x: int, y: int):
+        self.X = x
+        self.Y = y
+
+    def to_tuple(self):
+        return (self.X, self.Y)
+
+    def __str__(self):
+        return "({}, {})".format(self.X, self.Y)
 
 
 class MonteCarloSteg:
@@ -34,7 +35,6 @@ class MonteCarloSteg:
                    3: ['101', '101', '010', '101', '010', '010', '101'],
                    2: ['10', '01', '10', '01', '10', '01', '10', '01', '10', '10', '01']}
 
-    Encoding_Lengths = [5, 4, 3, 2]
     If_Palette = False
     ImageHeight = 0
     ImageWidth = 0
@@ -45,134 +45,79 @@ class MonteCarloSteg:
     EncodingLength = 0
     Hash = ""
     OutputImageFile = "output.bmp"
+    Threshold = 101
 
     def __init__(self):
+        self.Output_File_Name = None
+        self.LoadedImage = None
+        self.ImageDetails = None
         self.InputData = None
+        self.Data_Received = None
+        self.Verbose = False
+        self.Encoding_Lengths = [2, ]
 
-    def file_to_binary(self, InputFilename):
-        self.Hash = hashlib.md5(open(InputFilename, 'rb').read()).hexdigest()
-        binary_content = []
-        inputfileheader = (InputFilename + "::").encode()
-        try:
-            with open(InputFilename, 'rb') as file:
-                binary_data = file.read()
+    # Utils
 
-            binary_data = inputfileheader + binary_data
-            #compressed_data = binary_data
-            compressed_data = zlib.compress(binary_data)
-            compressed_data += ("::" + self.Hash).encode()
-        except FileNotFoundError:
-            print("The input file does not exist")
-            return
-        bitstring.BitArray()
-        data_in_ints = [format(int(byte), 'd') for byte in compressed_data]
-        self.Starting_Hex_Values = [hex(int(x)) for x in data_in_ints]
-        binary_string = ''.join(format(byte, '08b') for byte in compressed_data)
-        return binary_string
+    def verbose(self, string: str) -> None:
+        if self.Verbose:
+            print(string)
 
-    def get_pixel_position(self, starting_point, direction):
-        starting_x, starting_y = starting_point
+    def set_verbose(self, value: bool) -> None:
+        self.Verbose = value
+
+    def get_starting_crib(self) -> list:
+        return self.starting_crib[self.EncodingLength]
+
+    def get_ending_crib(self):
+        return self.ending_crib[self.EncodingLength]
+
+    def check_if_data(self, data_value, color_value):
+        # verbose(value,data)
+        # data
+        bits = self.EncodingLength + 1
+        mask = (int(255 >> bits) << bits) ^ 255  # mask to remove non essential bits
+        temp = int(color_value) & mask
+        temp = temp >> 1
+        # value
+        value_in_bin = int(data_value, 2)
+        if temp == value_in_bin:
+            return True
+        else:
+            return False
+
+    def get_pixel_position(self, starting_point: Point, direction) -> Point:
+        starting_x = starting_point.X
+        starting_y = starting_point.Y
         # starts at point which is bottom left
         if direction == Direction.row:
             for y in range(starting_y, self.ImageHeight):
                 for x in range(starting_x, self.ImageWidth):
-                    yield x, y
+                    yield Point(x, y)
                 starting_x = 0
 
         elif direction == Direction.column:
             for x in range(starting_x, self.ImageWidth):
                 for y in range(starting_y, self.ImageHeight):
-                    yield x, y
+                    yield Point(x, y)
                 starting_y = 0
 
         # starts at point which is bottom left
         if direction == Direction.rowreverse:
             for y in range(starting_y, self.ImageHeight):
                 for x in range(starting_x, -1, -1):
-                    yield x, y
+                    yield Point(x, y)
                 starting_x = self.ImageWidth - 1
 
         elif direction == Direction.columnreverse:
             for x in range(starting_x, self.ImageWidth):
                 for y in range(starting_y, -1, -1):
-                    yield x, y
+                    yield Point(x, y)
                 starting_y = self.ImageHeight - 1
 
-    def Load_Image_File(self, input_image_file):
+    def save_image(self, output_file: str):
+        self.ImageDetails.save(output_file)
 
-        self.ImageDetails = Image.open(input_image_file)
-        verbose("Image info" + str(vars(self.ImageDetails)))
-        self.LoadedImage = self.ImageDetails.load()
-        self.ImageWidth = self.ImageDetails.width
-        self.ImageHeight = self.ImageDetails.height
-
-    def Save_Binary_File(self):
-        with open(self.Output_File_Name, 'wb') as file:
-            file.write(self.Data_Recieved)
-
-
-    def test(self, input_filename="testfile.txt", input_image_filename="test.bmp", output_image_filename="output.bmp"):
-        print("TEST started")
-        self.InputData = self.file_to_binary(input_filename)
-        self.Load_Image_File(input_image_filename)
-
-        # Encode
-        print("Encode started x-",self.ImageWidth,"  y-",self.ImageHeight)
-        best_case = self.test_encode()
-        if best_case:
-            point, direction, encoding, bits = best_case
-            self.encode_data(point, direction, encoding)
-
-        self.save_image()
-
-        # Decode
-        print("Decoding started")
-        self.Load_Image_File(output_image_filename)
-
-        for enco in (2, 3, 4):
-            points = []
-            self.EncodingLength = enco
-            for p in self.find_decode_points(enco):
-                full_crib = []
-                for dir in Direction:
-                    if self.check_for_full_crib(p, dir):
-                        points.append((p, dir))
-            out = "Points found for decoding " + str(enco) + " :" + str(points)
-            verbose(out)
-            for p in points:
-                decoded = self.attempt_decode_at_point(p[0], p[1])
-                if(decoded):
-                    if(self.data_decode(decoded)):
-                        self.Output_File_Name = b"output_" + self.Output_File_Name
-                        self.Save_Binary_File()
-                        return
-                print(decoded)
-        print(points)
-
-        self.Save_Binary_File()
-
-    def data_decode(self, data):
-        temp = data
-        temp = data[len(self.get_starting_crib()):len(data)-len(self.get_ending_crib())]
-        onezeros = ''.join(temp)
-        byte_values = [int(onezeros[i:i+8], 2) for i in range(0, len(onezeros), 8)]
-        byte_string= bytes(byte_values)
-        data= byte_string.split(b"::")
-
-        uncompressed_data = zlib.decompress(data[0])
-        filename, data = uncompressed_data.split(b"::")
-        self.Data_Recieved = data
-        self.Output_File_Name = filename
-        return True
-
-
-
-    def save_image(self):
-        print(type(self.LoadedImage))
-        self.ImageDetails.save(self.OutputImageFile)
-        # self.LoadedImage.save(self.OutputImageFile)
-
-    def encode_data(self, point, direction, encoding):
+    def encode_data(self, point: Point, direction: Direction, encoding: int):
         data_count = 0
         bits_changed = 0
         last_point = None
@@ -209,7 +154,7 @@ class MonteCarloSteg:
         print(point, " -> ", last_point)
 
     def set_encoding_data(self, length):
-        if not length in self.Encoding_Lengths:
+        if length not in self.Encoding_Lengths:
             print("ERROR incorrect encoding length")
 
         self.EncodingLength = length
@@ -219,31 +164,50 @@ class MonteCarloSteg:
         segmented_data = [data[i:i + self.EncodingLength] for i in range(0, len(data), self.EncodingLength)]
         self.Data_Ready = list(self.get_starting_crib()) + segmented_data + list(self.get_ending_crib())  # adds start crib and end crib
 
-    def encode(self, input_filename="testfile.txt", input_image_filename="test.bmp",
+    def get_rgb(self, point: Point):
+
+        if self.Palette:
+            index = self.LoadedImage.getpixel(point.to_tuple())  # index in the palette
+            base = 3 * index  # because each palette color has 3 components
+            return self.Palette[base:base + 3]
+        else:
+            return self.LoadedImage[point.to_tuple()]
+
+# Encode ####################################################################
+    def encode(self, input_filename="testfile.txt", input_image_filename="input.bmp",
                output_image_filename="output.bmp"):
         self.InputData = self.file_to_binary(input_filename)
-        self.Load_Image_File(input_image_filename)
+        self.load_image_file(input_image_filename)
 
-    def test_encode(self):
+        # Encode
+        print("Encode started x-", self.ImageWidth, "  y-", self.ImageHeight)
+        best_case = self.test_encode()
+        if best_case:
+            point, direction, encoding, bits = best_case
+            self.encode_data(point, direction, encoding)
+
+        self.save_image(output_image_filename)
+
+    def test_encode(self) -> tuple:
         possible_encoding = None
         last_pixel = None
         pixels = self.ImageHeight * self.ImageWidth
-        for e in [2,3,4]:
+        #attempt each encoding level
+        for e in [2]:
 
             self.set_encoding_data(e)
             # data_excess is the factor of amount of bits that can be changed per actual data hidden, the goal is to actually get the number in excess of 100%
             data_length = len(self.Data_Ready)
-            data_excess = 0#self.EncodingLength * data_length / (percentage_cutoff / 100)
-            verbose("testing encoding " + str(e))
-            lis = [x for x in self.get_possible_starting_point()]
+            data_excess = self.EncodingLength * data_length / .5
+            self.verbose("testing encoding " + str(e))
             count = 0
-            tot = len(lis)
             #Each possible starting point will be looped by how many possible directions it can go.
             for point in self.get_possible_starting_point():
+                count += 1
+                if count % 100 == 0:
+                    percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y)+ point.X) / pixels)
+                    print("\r ", percent_done, "testing ", self.EncodingLength, " ", point, end="")
                 for direct in Direction:
-                    count += 1
-                    percent_done = "{00:.3%}".format(count/tot)
-                    print("\r ",percent_done,"testing ",self.EncodingLength," ", point, ":", direct, end="")
                     data_encoded = False
                     exceeded = False
                     data_count = 0
@@ -280,12 +244,12 @@ class MonteCarloSteg:
                         #print(point, direct, "exceeded data length", end="")
                         pass
                     elif data_encoded:
-                        data_excess = bits_changed -1
+                        data_excess = bits_changed - 1 # We only care about points that are more effiecent
                         print(self.EncodingLength, " :: ", point, " -> ", last_pixel, ": ", direct, " can be placed in "\
                               , bits_changed, "bits / ", data_length * self.EncodingLength, "bits percent ",
                               100 * (data_length * self.EncodingLength) / bits_changed, "%  ")
                         possible_encoding=(point, direct, self.EncodingLength, bits_changed)
-                        if 100 * (data_length * self.EncodingLength) / bits_changed > 90:
+                        if 100 * (data_length * self.EncodingLength) / bits_changed > self.Threshold:
                             return possible_encoding
                     else: # ran out of pixels
                         pass
@@ -297,19 +261,65 @@ class MonteCarloSteg:
 
         return possible_encoding
 
+    def file_to_binary(self, input_filename: str) -> str:
+        self.Hash = hashlib.md5(open(input_filename, 'rb').read()).hexdigest()
+        binary_content = []
+        inputfileheader = (input_filename + "::").encode()
+        try:
+            with open(input_filename, 'rb') as file:
+                binary_data = file.read()
 
-    def decode(self):
-        self.OriginalData = self.file_to_binary()
-        self.LoadedImage = Image.open(self.OutputImageFile)
-        # Load the image into memory to allow pixel access.
-        self.ImageWidth = self.LoadedImage.width
-        self.ImageHeight = self.LoadedImage.height
+            binary_data = inputfileheader + binary_data
+            #compressed_data = binary_data
+            compressed_data = zlib.compress(binary_data)
+            compressed_data += ("::" + self.Hash).encode()
+        except FileNotFoundError:
+            print("The input file does not exist")
+            return
+        data_in_ints = [format(int(byte), 'd') for byte in compressed_data]
+        self.Starting_Hex_Values = [hex(int(x)) for x in data_in_ints]
+        binary_string = ''.join(format(byte, '08b') for byte in compressed_data)
+        return binary_string
 
-        if self.LoadedImage.getbands() == 'P':
-            self.Palette = self.LoadedImage.getpalette()
+    def load_image_file(self, input_image_file: str) -> None:
+
+        self.ImageDetails = Image.open(input_image_file)
+        self.verbose("Image info" + str(vars(self.ImageDetails)))
+        self.LoadedImage = self.ImageDetails.load()
+        self.ImageWidth = self.ImageDetails.width
+        self.ImageHeight = self.ImageDetails.height
+
+    def get_possible_starting_point(self) -> Point:
+        for y in range(self.ImageHeight):
+            for x in range(self.ImageWidth):
+                test = Point(x, y)
+                r, g, b = self.get_rgb(test)
+                val = (r, g, b)
+                if_val = False
+                crib = self.get_starting_crib()
+                for i, s in enumerate(val):
+                    if self.check_if_data(crib[0], s):
+                        if_val = True
+                if if_val:
+                    if_val = False
+                    yield test
+
+    def set_rgb(self, point: Point, rgb: tuple) -> None:
+
+        if self.If_Palette:
+            index = self.LoadedImage.getpixel(point.to_tuple())  # index in the palette
+            base = 3 * index  # because each palette color has 3 components
+            self.Palette[base] = rgb[0]
+            self.Palette[base + 1] = rgb[1]
+            self.Palette[base + 2] = rgb[2]
         else:
-            self.Pixels = self.LoadedImage.load()
-        for enco in (4, 3, 2):
+            self.LoadedImage[point.to_tuple()] = rgb
+
+# Decode ####################################################################
+    def decode(self, output_image_filename="output.bmp"):
+        self.load_image_file(output_image_filename)
+
+        for enco in [2,]:
             points = []
             self.EncodingLength = enco
             for p in self.find_decode_points(enco):
@@ -318,30 +328,35 @@ class MonteCarloSteg:
                     if self.check_for_full_crib(p, dir):
                         points.append((p, dir))
             out = "Points found for decoding " + str(enco) + " :" + str(points)
-            verbose(out)
-            for p in points:
-                self.attempt_decode_at_point(p[0], p[1])
-        print(points)
+            self.verbose(out)
+            for point, direct in points:
+                decoded = self.attempt_decode_at_point(point, direct)
+                if(decoded):
+                    if(self.data_decode(decoded)):
+                        self.Output_File_Name = self.Output_File_Name + b".output"
+                        self.save_binary_file()
+                        return
 
-    def check_if_data(self, data_value, color_value):
-        # verbose(value,data)
-        # data
-        bits = self.EncodingLength + 1
-        mask = (int(255 >> bits) << bits) ^ 255  # mask to remove non essential bits
-        temp = int(color_value) & mask
-        temp = temp >> 1
-        # value
-        value_in_bin = int(data_value, 2)
-        if temp == value_in_bin:
-            return True
-        else:
-            return False
+        self.save_binary_file()
 
-    def find_decode_points(self, encoding):
+    def data_decode(self, data):
+        temp = data
+        one_zeros = ''.join(data[len(self.get_starting_crib()):len(data)-len(self.get_ending_crib())])
+        byte_values = [int(one_zeros[i:i+8], 2) for i in range(0, len(one_zeros), 8)]
+        byte_string= bytes(byte_values)
+        data= byte_string.split(b"::")
+
+        uncompressed_data = zlib.decompress(data[0])
+        filename, data = uncompressed_data.split(b"::")
+        self.Data_Received = data
+        self.Output_File_Name = filename
+        return True
+
+    def find_decode_points(self, encoding: int) -> Point:
         for y in range(self.ImageHeight):
             for x in range(self.ImageWidth):
-
-                r, g, b = self.get_rgb((x, y))
+                test = Point(x, y)
+                r, g, b = self.get_rgb(test)
                 val = (r, g, b)
                 if_val = False
                 for i, s in enumerate(val):
@@ -349,9 +364,9 @@ class MonteCarloSteg:
                         if_val = True
                 if if_val:
                     if_val = False
-                    yield x, y
+                    yield test
 
-    def Read_Data(self, value):
+    def read_data(self, value: int):
         # verbose(value,data)
         # data
         bits = 8 - self.EncodingLength
@@ -372,9 +387,8 @@ class MonteCarloSteg:
 
         started = False
 
-        for xy in self.get_pixel_position(point, direction):
-            x, y = xy
-            r, g, b = self.get_rgb((x, y))
+        for p in self.get_pixel_position(point, direction):
+            r, g, b = self.get_rgb(p)
             val = (r, g, b)
 
             for i, s in enumerate(val):
@@ -383,11 +397,11 @@ class MonteCarloSteg:
                     if self.check_if_data(crib[0], s):
                         started = True
                         data_count += 1
-                        out_data.append(self.Read_Data(s))
+                        out_data.append(self.read_data(s))
 
                 elif (s & 1) == 1:  # found value
                     data_count += 1
-                    out_data.append(self.Read_Data(s))
+                    out_data.append(self.read_data(s))
                     a = data_count > len(self.get_ending_crib()) * 2
                     b = self.get_ending_crib()[-1]
                     c = out_data[-1]
@@ -409,13 +423,7 @@ class MonteCarloSteg:
                 elif (s & 0) == 1:  # if there is a value that does not match the starting crib, then return false
                     pass
 
-    def get_starting_crib(self):
-        return self.starting_crib[self.EncodingLength]
-
-    def get_ending_crib(self):
-        return self.ending_crib[self.EncodingLength]
-
-    def check_for_full_crib(self, point, direction):
+    def check_for_full_crib(self, point: Point, direction: Direction):
         ##attempting all possible directions from point
 
         # limit is to ensure that it doesnt loop through the whole program
@@ -426,10 +434,9 @@ class MonteCarloSteg:
 
         started = False
 
-        for xy in self.get_pixel_position(point, direction):
+        for p in self.get_pixel_position(point, direction):
             new_data_added = False
-            x, y = xy
-            r, g, b = self.get_rgb((x, y))
+            r, g, b = self.get_rgb(p)
             val = (r, g, b)
             if pixel_count > pixel_limit:  # set limit on how long the loop goes before giving up on looking for the crib
                 return False
@@ -452,42 +459,19 @@ class MonteCarloSteg:
 
             pixel_count += 1
 
-    def get_possible_starting_point(self):
-        for y in range(self.ImageHeight):
-            for x in range(self.ImageWidth):
+    def save_binary_file(self) -> None:
+        with open(self.Output_File_Name, 'wb') as file:
+            file.write(self.Data_Received)
 
-                r, g, b = self.get_rgb((x, y))
-                val = (r, g, b)
-                if_val = False
-                crib = self.get_starting_crib()
-                for i, s in enumerate(val):
-                    if self.check_if_data(crib[0], s):
-                        if_val = True
-                if if_val:
-                    if_val = False
-                    yield x, y
+    # Test ####################################################################
+    def test(self, input_filename="testfile.txt" , input_image_filename="test.bmp", output_image_filename="output.bmp"):
+        print("TEST started")
+        self.encode(input_filename,input_image_filename,output_image_filename)
 
-    def set_rgb(self, point, rgb):
-
-        if self.If_Palette:
-            index = self.LoadedImage.getpixel(point)  # index in the palette
-            base = 3 * index  # because each palette color has 3 components
-            self.Palette[base] = rgb[0]
-            self.Palette[base + 1] = rgb[1]
-            self.Palette[base + 2] = rgb[2]
-        else:
-            self.LoadedImage[point] = rgb
-            # self.LoadedImage.putpixel(point, rgb)
-
-    def get_rgb(self, point):
-
-        if self.Palette:
-            index = self.LoadedImage.getpixel(point)  # index in the palette
-            base = 3 * index  # because each palette color has 3 components
-            return self.Palette[base:base + 3]
-        else:
-            return self.LoadedImage[point]
-
+        # Decode
+        print("Decoding started")
+        self.decode(output_image_filename)
+# end of class MonteCarloSteg
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Example Argument Parser")
@@ -502,19 +486,18 @@ def parse_args():
 
 
 def main():
-    Monte = MonteCarloSteg()
+    monte = MonteCarloSteg()
     args = parse_args()
     if args.verbose:
-        global verbose
-        verbose = True
+        monte.set_verbose(True)
     if args.encode:
-        Monte.encode()
+        monte.encode()
         # Monte.set_File()
     elif args.decode:
-        Monte.decode()
+        monte.decode()
     elif args.test:
         # Monte.set_File(args.encode())
-        Monte.test()
+        monte.test()
 
         # Monte.test()
 
