@@ -1,8 +1,17 @@
+##
+# Team 4 - Monte Carlo Stego
+# Andrew Neumann 
+# Madeline Kotara
+# Haven Kotara
+# Please ensure you have PIL installed. https://pillow.readthedocs.io/en/stable/
+##
+
 from PIL import Image
 import argparse
 from enum import Enum
 import hashlib
 import zlib
+import sys
 
 
 class Direction(Enum):
@@ -193,6 +202,7 @@ class MonteCarloSteg:
         self.load_image_file(self.Input_Image_Filename)
 
         # Encode
+        print("WARNING: This may be *very* slow depending on how big the input image is")
         print("Encode started x-", self.ImageWidth, "  y-", self.ImageHeight)
         best_case = self.test_encode()
         if best_case:
@@ -491,12 +501,18 @@ class MonteCarloSteg:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Example Argument Parser")
+    parser = argparse.ArgumentParser(description="The Monte Carlo Steganography Utility is used to encode or decode a file. Right now\
+                                     the tool has limited functionality/support but does work in practice. More features\
+                                     and testing are needed and may be implemented if time permits.", epilog="Specify a file to encode or decode. The\
+                                        only image functionality present is for BMP files.")
+
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-e", "--encode", type=str, help="Specify the file to encode")
     group.add_argument("-d", "--decode", type=str, help="Specify the file to decode")
     group.add_argument("-t", "--test", type=str, help="Specify test")
+    parser.add_argument("-i", "--infile", type=str, help="The file to embed into the image")
+    parser.add_argument("-o", "--outfile", type=str, help="output file from resulting encode/decode operation")
     args = parser.parse_args()
 
     return args
@@ -505,17 +521,23 @@ def parse_args():
 def main():
     monte = MonteCarloSteg()
     args = parse_args()
+    monte.set_input_image_filename(args.encode)
+    monte.set_input_filename(args.infile)
+    monte.set_output_image_filename(args.outfile)
     if args.verbose:
         monte.set_verbose(True)
-    if args.encode:
+    if args.encode and args.infile and args.outfile:
         monte.encode()
-    elif args.decode:
+    elif args.decode and args.infile and args.outfile:
         monte.decode(args.decode)
     elif args.test:
         #Monte.set_File(args.test())
         monte.test()
 
         # Monte.test()
+    else:
+        print("Invalid arguments specificed")
+        sys.exit(-1)
 
 
 if __name__ == "__main__":
