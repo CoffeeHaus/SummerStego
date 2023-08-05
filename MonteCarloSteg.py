@@ -1,17 +1,25 @@
 ##
 # Team 4 - Monte Carlo Stego
-# Andrew Neumann 
+# Andrew Neumann
 # Madeline Kotara
 # Haven Kotara
 # Please ensure you have PIL installed. https://pillow.readthedocs.io/en/stable/
+# Please ensure you have filetype installed. https://pypi.org/project/filetype/
+# To install the above packages you need pip https://pypi.org/project/pip/
+# This program was developed with python 3.7+ in mind
+# How to use this program:
+# Hide some data: python3 MonteCarloSteg.py -e <path to cover image> -i <path to message> -o <file to write the stego image to>
+# Extract some data: python3 MonteCarloSteg.py -d <path to stego image> -o <file to write the message to>
 ##
 
+#!/usr/bin/python3
 from PIL import Image
 import argparse
 from enum import Enum
 import hashlib
 import zlib
 import sys
+import filetype
 
 
 class Direction(Enum):
@@ -53,7 +61,7 @@ class MonteCarloSteg:
     Data_Ready = None
     EncodingLength = 0
     Hash = ""
-    OutputImageFile = "output.bmp"
+    OutputImageFile = ""
 
     Input_Filename = ""
 
@@ -65,10 +73,10 @@ class MonteCarloSteg:
         self.Data_Received = None
         self.Verbose = False
         self.Encoding_Lengths = [2, ]
-        self.Threshold = 105
-        self.Input_Filename = "testfile.txt"
-        self.Input_Image_Filename = "test.bmp"
-        self.Output_Image_Filename = "output.bmp"
+        self.Threshold = 92
+        self.Input_Filename = ""
+        self.Input_Image_Filename = ""
+        self.Output_Image_Filename = ""
 
     # Utils
 
@@ -195,6 +203,8 @@ class MonteCarloSteg:
         self.Input_Image_Filename = input_image_filename
     def set_output_image_filename(self, output_image_filename: str) -> None:
         self.Output_Image_Filename = output_image_filename
+    def get_input_image_filename(self):
+        return self.Input_Image_Filename
 
 # Encode ####################################################################
     def encode(self):
@@ -499,7 +509,8 @@ class MonteCarloSteg:
         self.decode()
 # end of class MonteCarloSteg
 
-
+#TODO
+#Fix this to not accept -o with -e
 def parse_args():
     parser = argparse.ArgumentParser(description="The Monte Carlo Steganography Utility is used to encode or decode a file. Right now\
                                      the tool has limited functionality/support but does work in practice. More features\
@@ -507,12 +518,13 @@ def parse_args():
                                         only image functionality present is for BMP files.")
 
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
+    group2 = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("-e", "--encode", type=str, help="Specify the file to encode")
-    group.add_argument("-d", "--decode", type=str, help="Specify the file to decode")
-    group.add_argument("-t", "--test", type=str, help="Specify test")
-    parser.add_argument("-i", "--infile", type=str, help="The file to embed into the image")
-    parser.add_argument("-o", "--outfile", type=str, help="output file from resulting encode/decode operation")
+    group2.add_argument("-d", "--decode", type=str, help="Specify the file to decode")
+    parser.add_argument("-t", "--test", type=str, help="Specify test")
+    group.add_argument("-i", "--infile", type=str, help="The file to embed into the image")
+    group.add_argument("-o", "--outfile", type=str, help="output file from resulting ENCODE operation")
     args = parser.parse_args()
 
     return args
@@ -523,20 +535,27 @@ def main():
     args = parse_args()
     monte.set_input_image_filename(args.encode)
     monte.set_input_filename(args.infile)
-    monte.set_output_image_filename(args.outfile)
+    #monte.set_output_image_filename(args.outfile)
     if args.verbose:
         monte.set_verbose(True)
-    if args.encode and args.infile and args.outfile:
+    if args.encode:
+        monte.set_output_image_filename(args.outfile)
+        kind = filetype.guess(args.encode)
+        if kind.mime != "image/bmp":
+            print("Cover image must be a BMP")
+            sys.exit(-1)
         monte.encode()
-    elif args.decode and args.infile and args.outfile:
-        monte.decode(args.decode)
+    elif args.decode and not args.outfile:
+        monte.set_output_image_filename(args.decode)
+        #print(args.decode)
+        monte.decode()
     elif args.test:
         #Monte.set_File(args.test())
         monte.test()
 
         # Monte.test()
     else:
-        print("Invalid arguments specificed")
+        print("Invalid arguments specificed, please rerun with -h flag")
         sys.exit(-1)
 
 
