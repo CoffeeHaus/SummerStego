@@ -1,0 +1,19 @@
+PS C:\Users\Maddie\Documents\GitHub\SummerStego\histograms> .\wbh_6.00.exe .\monte.bmp -s 25 -b
+
+
+ Write Bitmap Histogram Version: 6.00
+
+    by John A. Ortiz, last update Feb 10, 2022
+
+
+TotalBytes Analyzed: 4264314  ---> File Entropy = 6.9737213,  Max Entropy:7.9366379,  RatioH:0.8786745,  Std Dev Percent: 2612.81%
+
+PS C:\Users\Maddie\Documents\GitHub\SummerStego\histograms> .\wbh_6.00.exe .\stegO.bmp -s 25 -b
+
+
+ Write Bitmap Histogram Version: 6.00
+
+    by John A. Ortiz, last update Feb 10, 2022
+
+
+TotalBytes Analyzed: 4264314  ---> File Entropy = 7.1360324,  Max Entropy:7.9715436,  RatioH:0.8951883,  Std Dev Percent: 2176.27%
