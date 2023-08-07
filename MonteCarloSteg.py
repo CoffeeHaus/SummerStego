@@ -20,6 +20,7 @@ import hashlib
 import zlib
 import sys
 import filetype
+import numpy as np
 
 
 class Direction(Enum):
@@ -195,14 +196,18 @@ class MonteCarloSteg:
         else:
             return self.LoadedImage[point.to_tuple()]
 
-    def set_threshold(self, threshold: str) -> None:
+    def set_threshold(self, threshold: int) -> None:
         self.Threshold = threshold
+
     def set_input_filename(self, input_image_filename: str) -> None:
         self.Input_Filename = input_image_filename
+
     def set_input_image_filename(self, input_image_filename: str) -> None:
         self.Input_Image_Filename = input_image_filename
+
     def set_output_image_filename(self, output_image_filename: str) -> None:
         self.Output_Image_Filename = output_image_filename
+
     def get_input_image_filename(self):
         return self.Input_Image_Filename
 
@@ -225,42 +230,69 @@ class MonteCarloSteg:
         possible_encoding = None
         last_pixel = None
         pixels = self.ImageHeight * self.ImageWidth
+
+        dtype = np.dtype([('r', int), ('g', int), ('b', int)])
+
+
+        array = np.empty((self.ImageWidth, self.ImageHeight), dtype=dtype)
+        for y in range(self.ImageHeight):
+            for x in range(self.ImageWidth):
+                r, g, b = self.get_rgb(Point(x, y))
+                a = array[x][y]
+                array[x][y] = ((r>>1)&3, (g>>1)&3, (b>>1)&3)
+
         #attempt each encoding level
         for e in [2]:
 
             self.set_encoding_data(e)
+            mask = 3
+
+            data_bits = [int(x, 2) for x in self.Data_Ready]
+
             # data_excess is the factor of amount of bits that can be changed per actual data hidden, the goal is to actually get the number in excess of 100%
             data_length = len(self.Data_Ready)
-            data_excess = self.EncodingLength * data_length / .5
+            data_excess = self.EncodingLength * data_length / .1
             self.verbose("testing encoding " + str(e))
             count = 0
             #Each possible starting point will be looped by how many possible directions it can go.
             for point in self.get_possible_starting_point():
-                percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y) + point.X) / pixels)
-                print("\r ", percent_done, "testing ", self.EncodingLength, " ", point, end="")
-                count += 1
-                if count % 100 == 0:
+                count -= 1
+                if count <= 0:
+                    count = 8
                     percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y) + point.X) / pixels)
-                    print("\r ", percent_done, "testing ", self.EncodingLength, " ", point, end="")
+                    print(f"\r {percent_done} testing {self.EncodingLength} {point}", end="")
+
                 for direct in Direction:
                     data_encoded = False
                     exceeded = False
                     data_count = 0
                     bits_changed = 0
+                    bln_5_percent = False
+                    int_5_percent = int(data_length/20)
+                    int_5_percent_excess = int(data_excess/20)
                     # check one possible starting location and direction
                     for pointa in self.get_pixel_position(point, direct):
-                        # evaluate rgb
-                        for color_value in self.get_rgb(pointa):
-                            if data_excess != 0 and bits_changed > data_excess: # check for if bits changed is more than allowed.
+                        if data_excess != 0 and bits_changed > data_excess:  # check for if bits changed is more than allowed.
+                            exceeded = True
+                            break
+                        elif bln_5_percent: # check at the 5 percent point to see if data is being effiecnt
+                            if bits_changed > int_5_percent_excess:
                                 exceeded = True
                                 break
-                            elif data_count >= data_length: # check for end of data
+                            else:
+                                bln_5_percent = False
+
+                        # evaluate rgb
+                        for color_value in array[pointa.X][pointa.Y]:
+                            if data_count == data_length:  # check for end of data
                                 last_pixel = pointa
                                 data_encoded = True
                                 break
-                            #data we want
-                            elif self.check_if_data(self.Data_Ready[data_count], color_value):
+                            data = data_bits[data_count] ## troubleshooting
+                            if color_value == data_bits[data_count]:
                                 data_count += 1
+                                if int_5_percent == data_count:
+                                    bln_5_percent = True
                                 if (color_value & 1) == 0:  # data will need to be marked as encoded
                                     bits_changed += 1
                                 else:  # data will not need to be marked as encoded, because it already is
@@ -271,7 +303,8 @@ class MonteCarloSteg:
                                     bits_changed += 1
                                 else: # the data is not what is needed and doesnt need to be encoded.
                                     pass
-
+                        if data_encoded:
+                            break
                         if exceeded:
                             break
                     # end for loop color values
@@ -279,12 +312,10 @@ class MonteCarloSteg:
                         #print(point, direct, "exceeded data length", end="")
                         pass
                     elif data_encoded:
-                        data_excess = bits_changed - 1  # We only care about points that are more efficient
+                        data_excess = int(bits_changed * .98)  # We only care about points that are more efficient
                         percent = "{:.6}%".format(100 * data_length * self.EncodingLength / bits_changed)
-                        print("\r", self.EncodingLength, " e ", point, " -> ", last_pixel, ":\t", direct,
-                              " ", bits_changed, "bits changed / ", data_length * self.EncodingLength,
-                              "Hidden efficiency percent ", percent)
-                        possible_encoding=(point, direct, self.EncodingLength, bits_changed)
+                        print(f"\r{self.EncodingLength} e {point} -> {last_pixel}:\t {direct} ({bits_changed} /{data_length * self.EncodingLength}) bits changed / bits hidden = {percent} efficiency")
+                        possible_encoding = (point, direct, self.EncodingLength, bits_changed)
                         if 100 * (data_length * self.EncodingLength) / bits_changed > self.Threshold:
                             return possible_encoding
                     else: # ran out of pixels
@@ -298,7 +329,7 @@ class MonteCarloSteg:
         return possible_encoding
 
     def file_to_binary(self, input_filename: str) -> str:
-        self.Hash = hashlib.md5(open(input_filename, 'rb').read()).hexdigest()
+
         binary_content = []
         inputfileheader = (input_filename + "::").encode()
         try:
@@ -306,6 +337,7 @@ class MonteCarloSteg:
                 binary_data = file.read()
 
             binary_data = inputfileheader + binary_data
+            self.Hash = hashlib.md5(binary_data).hexdigest()
             #compressed_data = binary_data
             compressed_data = zlib.compress(binary_data)
             compressed_data += ("::" + self.Hash).encode()
@@ -326,16 +358,18 @@ class MonteCarloSteg:
         self.ImageHeight = self.ImageDetails.height
 
     def get_possible_starting_point(self) -> Point:
+        crib = int(self.get_starting_crib()[0], 2)
+
         for y in range(self.ImageHeight):
             for x in range(self.ImageWidth):
                 test = Point(x, y)
                 r, g, b = self.get_rgb(test)
-                val = (r, g, b)
+                rgb = (r, g, b)
                 if_val = False
-                crib = self.get_starting_crib()
-                for i, s in enumerate(val):
-                    if self.check_if_data(crib[0], s):
+                for v in rgb:
+                    if (v >> 1) & 3 == crib:
                         if_val = True
+
                 if if_val:
                     if_val = False
                     yield test
@@ -522,9 +556,10 @@ def parse_args():
     subparsers = parent_parser.add_subparsers(help="Choose an operating mode", dest='mode')
 
     encode_parser = subparsers.add_parser('encode', help='encode a cover image with a message file to produce a stego image')
-    encode_parser.add_argument("-i", "--input", type=str, required=True, help="Specify the name/path of the cover file")
+    encode_parser.add_argument("-i", "--input", type=str, required=False, default="cover.bmp", help="Specify the name/path of the cover file")
     encode_parser.add_argument("-m", "--message", type=str, required=True, help="Specify the name/path of the message file to embed")
-    encode_parser.add_argument("-o", "--output", type=str, required=True, help="Specify the name/path of the stego image being created")
+    encode_parser.add_argument("-o", "--output", type=str, required=False, default="output.bmp", help="Specify the name/path of the stego image being created")
+    encode_parser.add_argument("-t", "--threshold", type=int, required=False, help="percent threshold")
     encode_parser.set_defaults(action=lambda: 'encode')
 
     decode_parser = subparsers.add_parser('decode', help='decode a stego image to retrieve the hidden message')
@@ -542,6 +577,8 @@ def main():
     #if args.verbose:
     ##    monte.set_verbose(True)
     if args.mode == 'encode':
+        if args.threshold:
+            monte.set_threshold(args.threshold)
         monte.set_input_image_filename(args.input)
         monte.set_input_filename(args.message)
         monte.set_output_image_filename(args.output)
