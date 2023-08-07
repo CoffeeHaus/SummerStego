@@ -8,8 +8,8 @@
 # To install the above packages you need pip https://pypi.org/project/pip/
 # This program was developed with python 3.7+ in mind
 # How to use this program:
-# Hide some data: python3 MonteCarloSteg.py -e <path to cover image> -i <path to message> -o <file to write the stego image to>
-# Extract some data: python3 MonteCarloSteg.py -d <path to stego image> -o <file to write the message to>
+# Hide some data: python3 MonteCarloSteg.py encode -i <path to cover image> -m <path to message> -o <file to write the stego image to>
+# Extract some data: python3 MonteCarloSteg.py decode -x <path to stego image>
 ##
 
 #!/usr/bin/python3
