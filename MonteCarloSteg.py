@@ -21,7 +21,7 @@ import zlib
 import sys
 import filetype
 import numpy as np
-
+import time
 
 class Direction(Enum):
     row = 0
@@ -249,18 +249,27 @@ class MonteCarloSteg:
 
             data_bits = [int(x, 2) for x in self.Data_Ready]
 
+            start = time.time()
+            initial_start = start  # For total elapsed time tracking
+
             # data_excess is the factor of amount of bits that can be changed per actual data hidden, the goal is to actually get the number in excess of 100%
             data_length = len(self.Data_Ready)
             data_excess = self.EncodingLength * data_length / .1
-            self.verbose("testing encoding " + str(e))
-            count = 0
+
             #Each possible starting point will be looped by how many possible directions it can go.
             for point in self.get_possible_starting_point():
-                count -= 1
-                if count <= 0:
-                    count = 8
-                    percent_done = "{00:.3%}".format(((self.ImageWidth * point.Y) + point.X) / pixels)
-                    print(f"\r {percent_done} testing {self.EncodingLength} {point}", end="")
+
+                if time.time() - start >= 1:
+                    elapsed_time = time.time() - initial_start
+                    elapsed_mins, elapsed_secs = divmod(elapsed_time, 60)
+                    elapsed_hrs, elapsed_mins = divmod(elapsed_mins, 60)
+
+                    # Calculate percentage progress
+                    percentage = (((self.ImageWidth * point.Y) + point.X) / pixels) * 100
+
+                    print(f"\r[{time.strftime('%Y-%m-%d %H:%M:%S')}] Progress: {point} ({percentage:.3f}%) - Time Elapsed: {int(elapsed_hrs)}:{int(elapsed_mins):02}:{int(elapsed_secs):02}", end="")
+                    start = time.time()
+
 
                 for direct in Direction:
                     data_encoded = False
@@ -429,8 +438,8 @@ class MonteCarloSteg:
                 r, g, b = self.get_rgb(test)
                 val = (r, g, b)
                 if_val = False
-                for i, s in enumerate(val):
-                    if self.check_if_data(self.get_starting_crib()[0], s):
+                for color in val:
+                    if self.check_if_data(self.get_starting_crib()[0], color):
                         if_val = True
                 if if_val:
                     if_val = False
