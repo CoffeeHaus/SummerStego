@@ -205,6 +205,9 @@ class MonteCarloSteg:
         self.Output_Image_Filename = output_image_filename
     def get_input_image_filename(self):
         return self.Input_Image_Filename
+    
+    def find_optimal_threshold(self):
+        pass
 
 # Encode ####################################################################
     def encode(self):
@@ -218,7 +221,7 @@ class MonteCarloSteg:
         if best_case:
             point, direction, encoding, bits = best_case
             self.encode_data(point, direction, encoding)
-
+        
         self.save_image(self.Output_Image_Filename)
 
     def test_encode(self) -> tuple:
@@ -509,8 +512,7 @@ class MonteCarloSteg:
         self.decode()
 # end of class MonteCarloSteg
 
-#TODO
-#Fix this to not accept -o with -e
+
 def parse_args():
 
     parent_parser = argparse.ArgumentParser(description="The Monte Carlo Steganography Utility is used to encode or decode a file. Right now\
@@ -525,6 +527,10 @@ def parse_args():
     encode_parser.add_argument("-i", "--input", type=str, required=True, help="Specify the name/path of the cover file")
     encode_parser.add_argument("-m", "--message", type=str, required=True, help="Specify the name/path of the message file to embed")
     encode_parser.add_argument("-o", "--output", type=str, required=True, help="Specify the name/path of the stego image being created")
+    #TODO
+    encode_parser.add_argument("-t", "--threshold", type=int, help="*NOT IMPLEMENTED* Specify the efficiency threshold for encoding. Program will test and inform you of optimal efficiency if user supplied threshold would cause a slow operation")
+    #TODO
+    encode_parser.add_argument("-l", "--lsb", help="*NOT IMPLEMENTED* Specify the number of LSBs to use for encoding. This increases efficiency but may run significantly slower")
     encode_parser.set_defaults(action=lambda: 'encode')
 
     decode_parser = subparsers.add_parser('decode', help='decode a stego image to retrieve the hidden message')
