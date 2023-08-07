@@ -515,8 +515,8 @@ def parse_args():
 
     parent_parser = argparse.ArgumentParser(description="The Monte Carlo Steganography Utility is used to encode or decode a file. Right now\
                                      the tool has limited functionality/support but does work in practice. More features\
-                                     and testing are needed and may be implemented if time permits.", epilog="Specify a file to encode or decode. The\
-                                        only image functionality present is for BMP files.")
+                                     and testing are needed and may be implemented if time permits.", epilog="Specify \"encode -h\" or \"decode -h\" to see usage information for each operation. \
+                                        Only BMP files are supported for the cover image.")
     
 
     subparsers = parent_parser.add_subparsers(help="Choose an operating mode", dest='mode')
