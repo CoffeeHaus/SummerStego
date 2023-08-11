@@ -5,6 +5,7 @@
 # Haven Kotara
 # Please ensure you have PIL installed. https://pillow.readthedocs.io/en/stable/
 # Please ensure you have filetype installed. https://pypi.org/project/filetype/
+# Please ensure you have numpy installed. https://pypi.org/project/numpy
 # To install the above packages you need pip https://pypi.org/project/pip/
 # This program was developed with python 3.7+ in mind
 # How to use this program:
