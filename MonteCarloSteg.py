@@ -9,8 +9,10 @@
 # To install the above packages you need pip https://pypi.org/project/pip/
 # This program was developed with python 3.7+ in mind
 # How to use this program:
-# Hide some data: python3 MonteCarloSteg.py encode -i <path to cover image> -m <path to message> -o <file to write the stego image to>
+# Hide some data: python3 MonteCarloSteg.py encode -i <path to cover image> -m <path to message> -o <file to write the stego image to> [-t threshold]
 # Extract some data: python3 MonteCarloSteg.py decode -x <path to stego image>
+# Due to a bug, it is important to test decoding after encoding a file to make sure it actually encoded correctly.
+# The default threshold is 90% but can be changed with the -t flag, which is optional
 ##
 
 #!/usr/bin/python3
@@ -594,6 +596,9 @@ def main():
         kind = filetype.guess(args.input)
         if kind.mime != "image/bmp":
             print("Cover image must be a BMP")
+            sys.exit(-1)
+        if ".bmp" not in args.output:
+            print("-o flag must include .bmp in filename")
             sys.exit(-1)
         monte.encode()
     elif args.mode == 'decode':
