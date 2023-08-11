@@ -75,7 +75,7 @@ class MonteCarloSteg:
         self.Data_Received = None
         self.Verbose = False
         self.Encoding_Lengths = [2, ]
-        self.Threshold = 92
+        self.Threshold = 90
         self.Input_Filename = ""
         self.Input_Image_Filename = ""
         self.Output_Image_Filename = ""
@@ -568,7 +568,7 @@ def parse_args():
     encode_parser.add_argument("-i", "--input", type=str, required=True, help="Specify the name/path of the cover file")
     encode_parser.add_argument("-m", "--message", type=str, required=True, help="Specify the name/path of the message file to embed")
     encode_parser.add_argument("-o", "--output", type=str, required=True, help="Specify the name/path of the stego image being created")
-    encode_parser.add_argument("-t", "--threshold", type=int, required=False, help="percent threshold")
+    encode_parser.add_argument("-t", "--threshold", type=int, default=90, required=False, help="percent threshold")
     encode_parser.set_defaults(action=lambda: 'encode')
 
     decode_parser = subparsers.add_parser('decode', help='decode a stego image to retrieve the hidden message')
